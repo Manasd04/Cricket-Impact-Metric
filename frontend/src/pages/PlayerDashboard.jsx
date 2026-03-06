@@ -6,16 +6,11 @@ import PlayerCard from '../components/PlayerCard';
 import ImpactMeter from '../components/ImpactMeter';
 import StatsBreakdown from '../components/StatsBreakdown';
 import ImpactTrendChart from '../components/ImpactTrendChart';
-import PerformanceRadar from '../components/PerformanceRadar';
-import ImpactBreakdownBar from '../components/ImpactBreakdownBar';
+import InningsTable from '../components/InningsTable';
 import { getPlayerImpact } from '../services/api';
 import { ArrowLeft, RefreshCw, Award } from 'lucide-react';
 
-const STAT_SEASONS = [
-  'All Time', '2025', '2024', '2023', '2022', '2021',
-  '2020', '2019', '2018', '2017', '2016', '2015',
-  '2014', '2013', '2012', '2011', '2010', '2009', '2008', '2007'
-];
+
 
 const PlayerDashboard = () => {
   const { playerName } = useParams();
@@ -80,22 +75,17 @@ const PlayerDashboard = () => {
               <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Season:</span>
               <select
                 value={selectedSeason}
-                onChange={(e) => setSelectedSeason(e.target.value)}
+                onChange={(e) => {
+                  setSelectedSeason(e.target.value);
+                  setSelectedWindow('All Time'); // reset window when season changes
+                }}
                 style={{ padding: '8px 14px', fontSize: '0.9rem', borderRadius: '6px', background: 'rgba(15, 23, 42, 0.6)', color: 'var(--text-main)', border: '1px solid var(--border)' }}
               >
-                {STAT_SEASONS.map(s => <option key={s} value={s}>{s}</option>)}
+                <option value="All Time">All Time</option>
+                {(data?.available_seasons || []).map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Window:</span>
-              <select
-                value={selectedWindow}
-                onChange={(e) => setSelectedWindow(e.target.value)}
-                style={{ padding: '8px 14px', fontSize: '0.9rem', borderRadius: '6px', background: 'rgba(15, 23, 42, 0.6)', color: 'var(--text-main)', border: '1px solid var(--border)' }}
-              >
-                {['All Time', 'Last 10', 'Last 25', 'Last 50'].map(w => <option key={w} value={w}>{w}</option>)}
-              </select>
-            </div>
+
             <button
               onClick={() => fetchPlayer(playerName, selectedSeason, selectedWindow)}
               style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(56,189,248,0.1)', border: '1px solid var(--primary)', borderRadius: '8px', padding: '10px 18px', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.9rem' }}
@@ -143,19 +133,13 @@ const PlayerDashboard = () => {
               />
             </div>
 
-            {/* Row 2: Impact Trend + Radar Chart */}
+            {/* Row 2: Impact Trend + Quick Stats */}
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '25px' }}>
-              <ImpactTrendChart data={data.trend} window={selectedWindow} />
-              <PerformanceRadar
-                performance={parseFloat(avgBat)}
-                context={parseFloat(avgContext)}
-                pressure={parseFloat(avgSituation)}
+              <ImpactTrendChart 
+                data={data.trend} 
+                window={selectedWindow} 
+                onWindowChange={setSelectedWindow} 
               />
-            </div>
-
-            {/* Row 3: Innings Breakdown Bar + mini stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '25px' }}>
-              <ImpactBreakdownBar inningsData={data.trend} />
               
               {/* Quick Stats Panel */}
               <div className="glass-panel animate-fade-in delay-400" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
@@ -175,6 +159,9 @@ const PlayerDashboard = () => {
                 ))}
               </div>
             </div>
+
+            {/* Row 3: Innings Breakdown Table */}
+            <InningsTable inningsData={data.trend} />
           </div>
         ) : null}
       </div>

@@ -155,15 +155,19 @@ def player_profile(player_name: str, window: str = "All Time", season: str = "Al
     if "start_date" in player_df.columns:
         player_df["start_date_dt"] = pd.to_datetime(player_df["start_date"], errors="coerce")
         player_df = player_df.sort_values("start_date_dt")
-        
+    
+    # Get all seasons the player played in (before filtering) so the frontend can populate the dropdown
+    p_seasons = sorted(player_df["season"].astype(str).unique(), reverse=True)
+    
+    # ── Step 1: Filter by season FIRST ─────────────────────────────────
+    if season != "All" and season in p_seasons:
+        player_df = player_df[player_df["season"].astype(str) == season]
+    
+    # ── Step 2: Then slice the last N innings of that season ────────────
     if window == "Last 10": player_df = player_df.tail(10)
     elif window == "Last 25": player_df = player_df.tail(25)
     elif window == "Last 50": player_df = player_df.tail(50)
     
-    p_seasons = sorted(player_df["season"].astype(str).unique(), reverse=True)
-    if season != "All" and season in p_seasons:
-        player_df = player_df[player_df["season"].astype(str) == season]
-        
     if player_df.empty:
          return {"error": "No data in selected filters"}
          
