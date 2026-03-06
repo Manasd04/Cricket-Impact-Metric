@@ -1,0 +1,13 @@
+# ============================================================
+# Render.com Configuration — Python FastAPI ML Server
+# ============================================================
+
+services:
+  - type: web
+    name: cricket-impact-ml
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api_server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: CRICKET_DATA_DIR
+        value: ../ipl_male_csv2

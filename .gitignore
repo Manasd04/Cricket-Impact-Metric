@@ -1,0 +1,52 @@
+# ============================================================
+# Root .gitignore — Cricket Impact Metric
+# ============================================================
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.pyc
+venv/
+env/
+.venv/
+
+# Environment files (NEVER commit real secrets)
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Vite build output
+frontend/dist/
+frontend/.vite/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Large datasets — don't commit the CSV data to git
+ipl_male_csv2/
+*.csv
+
+# Logs
+*.log
+logs/

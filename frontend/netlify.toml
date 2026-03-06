@@ -1,0 +1,18 @@
+# ============================================================
+# Netlify Configuration — Cricket Impact Metric Frontend
+# ============================================================
+
+[build]
+  # Directory to publish (Vite outputs to 'dist')
+  publish = "dist"
+  # Build command
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+# SPA routing — send all routes to index.html so React Router works
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
