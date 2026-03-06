@@ -70,7 +70,7 @@ def compute_performance(df):
         bat_df = df.groupby(['match_id', 'innings', 'batsman']).agg(
             runs=('runs', 'sum'),
             balls_faced=('is_valid_facing', 'sum'),
-            boundaries=('runs', lambda x: (x >= 4).sum())
+            boundaries=('runs', lambda x: x.isin([4, 6]).sum())
         ).reset_index()
 
         bat_df = bat_df.merge(innings_totals, on=['match_id', 'innings'], how='left')

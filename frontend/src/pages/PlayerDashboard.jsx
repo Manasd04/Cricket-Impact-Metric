@@ -24,13 +24,15 @@ const PlayerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [selectedSeason, setSelectedSeason] = useState('All Time');
+  const [selectedWindow, setSelectedWindow] = useState('Last 10');
 
-  const fetchPlayer = async (name, seasonVal) => {
+  const fetchPlayer = async (name, seasonVal, windowVal) => {
     setLoading(true);
     setError(false);
     try {
       const apiSeason = seasonVal === 'All Time' ? undefined : seasonVal;
-      const response = await getPlayerImpact(name, { season: apiSeason });
+      const apiWindow = windowVal === 'All Time' ? undefined : windowVal;
+      const response = await getPlayerImpact(name, { season: apiSeason, window: apiWindow });
       if (response.error) { setError(true); }
       else { setData(response); }
     } catch (err) {
@@ -41,8 +43,8 @@ const PlayerDashboard = () => {
   };
 
   useEffect(() => {
-    if (playerName) fetchPlayer(playerName, selectedSeason);
-  }, [playerName, selectedSeason]);
+    if (playerName) fetchPlayer(playerName, selectedSeason, selectedWindow);
+  }, [playerName, selectedSeason, selectedWindow]);
 
   const decodedName = decodeURIComponent(playerName);
   const summary = data?.summary || {};
@@ -79,13 +81,23 @@ const PlayerDashboard = () => {
               <select
                 value={selectedSeason}
                 onChange={(e) => setSelectedSeason(e.target.value)}
-                style={{ padding: '8px 14px', fontSize: '0.9rem' }}
+                style={{ padding: '8px 14px', fontSize: '0.9rem', borderRadius: '6px', background: 'rgba(15, 23, 42, 0.6)', color: 'var(--text-main)', border: '1px solid var(--border)' }}
               >
                 {STAT_SEASONS.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Window:</span>
+              <select
+                value={selectedWindow}
+                onChange={(e) => setSelectedWindow(e.target.value)}
+                style={{ padding: '8px 14px', fontSize: '0.9rem', borderRadius: '6px', background: 'rgba(15, 23, 42, 0.6)', color: 'var(--text-main)', border: '1px solid var(--border)' }}
+              >
+                {['All Time', 'Last 10', 'Last 25', 'Last 50'].map(w => <option key={w} value={w}>{w}</option>)}
+              </select>
+            </div>
             <button
-              onClick={() => fetchPlayer(playerName)}
+              onClick={() => fetchPlayer(playerName, selectedSeason, selectedWindow)}
               style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(56,189,248,0.1)', border: '1px solid var(--primary)', borderRadius: '8px', padding: '10px 18px', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.9rem' }}
             >
               <RefreshCw size={16} /> Refresh
@@ -133,7 +145,7 @@ const PlayerDashboard = () => {
 
             {/* Row 2: Impact Trend + Radar Chart */}
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '25px' }}>
-              <ImpactTrendChart data={data.trend} />
+              <ImpactTrendChart data={data.trend} window={selectedWindow} />
               <PerformanceRadar
                 performance={parseFloat(avgBat)}
                 context={parseFloat(avgContext)}

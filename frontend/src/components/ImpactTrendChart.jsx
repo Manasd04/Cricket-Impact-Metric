@@ -8,7 +8,7 @@ const CustomDot = (props) => {
   return <circle cx={cx} cy={cy} r={6} fill={color} stroke="var(--bg-surface)" strokeWidth={2} />;
 };
 
-const ImpactTrendChart = ({ data }) => {
+const ImpactTrendChart = ({ data, window = 'Last 10' }) => {
   const [chartType, setChartType] = useState('line');
   if (!data || data.length === 0) return null;
 
@@ -25,7 +25,7 @@ const ImpactTrendChart = ({ data }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
         <h3 className="section-header" style={{ marginBottom: 0 }}>
           <TrendingUp size={22} style={{ color: 'var(--primary)' }} />
-          Impact Trend (Last 10 Innings)
+          Impact Trend ({window === 'All Time' ? 'All Innings' : window + ' Innings'})
         </h3>
         <div style={{ display: 'flex', gap: '8px' }}>
           {['line', 'area'].map(type => (
