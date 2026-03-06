@@ -82,26 +82,25 @@ def compute_performance(df):
             bat_df['runs'] / np.maximum(bat_df['balls_faced'], 1)
         ) * 100
 
-        bat_df['runs_contribution'] = (
-            bat_df['runs'] / bat_df['innings_total']
-        ).fillna(0)
-
-        bat_df['SR_Impact']       = np.clip(bat_df['strike_rate'] / 130, 0, 2)
-        bat_df['Boundary_Impact'] = np.clip(bat_df['boundaries']  / 5,   0, 2)
+        # Normalize metrics so an "average" performance equals around 1.0
+        # Average runs ~ 30, average SR ~ 135, average boundaries ~ 4
+        bat_df['Runs_Impact']     = np.clip(bat_df['runs'] / 30, 0, 2.5)
+        bat_df['SR_Impact']       = np.clip(bat_df['strike_rate'] / 135, 0, 2.5)
+        bat_df['Boundary_Impact'] = np.clip(bat_df['boundaries'] / 4, 0, 2.5)
 
         # FIX 7: fill NaN before weighted sum
-        bat_df[['runs_contribution', 'SR_Impact', 'Boundary_Impact']] = (
-            bat_df[['runs_contribution', 'SR_Impact', 'Boundary_Impact']].fillna(0)
+        bat_df[['Runs_Impact', 'SR_Impact', 'Boundary_Impact']] = (
+            bat_df[['Runs_Impact', 'SR_Impact', 'Boundary_Impact']].fillna(0)
         )
 
         bat_df['Performance_bat'] = (
-            0.4 * bat_df['runs_contribution']
+            0.5 * bat_df['Runs_Impact']
             + 0.3 * bat_df['SR_Impact']
-            + 0.3 * bat_df['Boundary_Impact']
+            + 0.2 * bat_df['Boundary_Impact']
         )
 
         bat_df['BatWorkloadFactor'] = np.clip(
-            0.4 + 0.6 * (bat_df['balls_faced'] / 30), 0, 1
+            0.4 + 0.6 * (bat_df['balls_faced'] / 20), 0, 1.2
         )
         bat_df['Performance_bat'] = np.clip(
             bat_df['Performance_bat'] * bat_df['BatWorkloadFactor'], 0, 5

@@ -120,7 +120,8 @@ def leaderboards(season: str = "All Time"):
                  Last_Match=("Impact_Score", "last"),
                  Matches=("match_id","nunique"),
                  Avg_Bat=("perf_bat","mean"),
-                 Avg_Bowl=("perf_bowl","mean"))
+                 Avg_Bowl=("perf_bowl","mean"),
+                 role=("role", "first"))
             .round(2)
             .reset_index())
             
