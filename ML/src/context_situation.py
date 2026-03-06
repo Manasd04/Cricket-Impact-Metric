@@ -117,10 +117,27 @@ def compute_context_and_situation(df):
     # 5. SITUATION
     # ------------------------------------------------------------------
 
-    match_importance = 1.0
+    # ------------------------------------------------------------------
+    # 5. SITUATION  (match importance × pressure tier × form factor)
+    # ------------------------------------------------------------------
+    # Match importance: IPL has ~60 league matches then playoffs (QF/SF/F).
+    # We estimate importance from match_number within the season:
+    #   matches 1–50  → league stage      → importance = 1.0 (baseline)
+    #   matches 51–56 → playoff stage     → importance = 1.2 (+20% boost)
+    #   match 57+     → elimination/final → importance = 1.3 (+30% boost)
+    # This is data-driven (no hardcoded match IDs) and scalable across all
+    # seasons in the dataset (2007–2025).
+
+    if 'match_number' in match_ctx.columns:
+        match_ctx['match_importance'] = np.where(
+            match_ctx['match_number'] > 56, 1.3,
+            np.where(match_ctx['match_number'] > 50, 1.2, 1.0)
+        )
+    else:
+        match_ctx['match_importance'] = 1.0
 
     match_ctx["Situation"] = np.clip(
-        match_importance * (match_ctx["avg_pressure"] / 5.0),
+        match_ctx['match_importance'] * (match_ctx["avg_pressure"] / 5.0),
         1.0,
         1.5,
     )
