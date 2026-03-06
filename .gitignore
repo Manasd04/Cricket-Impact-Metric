@@ -43,9 +43,6 @@ Thumbs.db
 *.swp
 *.swo
 
-# Large datasets — don't commit the CSV data to git
-ipl_male_csv2/
-*.csv
 
 # Logs
 *.log

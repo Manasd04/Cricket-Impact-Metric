@@ -12,13 +12,16 @@ const Leaderboard = () => {
   const [loading, setLoading] = useState(true);
   const [activeRole, setActiveRole] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSeason, setSelectedSeason] = useState('All Time');
   const [sortBy, setSortBy] = useState('Avg_IM');
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
-        const response = await getLeaderboard();
+        const seasonParam = selectedSeason === 'All Time' ? undefined : selectedSeason;
+        const response = await getLeaderboard(seasonParam);
         // New endpoint returns { All: [...], Batter: [...], Bowler: [...], Allrounder: [...] }
         if (response && response.All) {
           setRawData(response);
@@ -32,12 +35,15 @@ const Leaderboard = () => {
       setLoading(false);
     };
     fetchData();
-  }, []);
+  }, [selectedSeason]);
+
+  // Generate Season Options (2007 to 2025)
+  const seasonOptions = ['All Time', ...Array.from({length: 19}, (_, i) => (2025 - i).toString())];
 
   // Active role selects from pre-segmented API data
   const allData = rawData[activeRole] || [];
 
-  // Computed: search filter + sort
+  // Computed: search filter + sort + top 10 limit
   const filteredData = useMemo(() => {
     let result = [...allData];
     if (searchQuery.trim()) {
@@ -46,7 +52,7 @@ const Leaderboard = () => {
       );
     }
     result.sort((a, b) => parseFloat(b[sortBy] || 0) - parseFloat(a[sortBy] || 0));
-    return result;
+    return result.slice(0, 10); // Enforce Top 10 limit
   }, [allData, searchQuery, sortBy]);
 
   // Compute the max score for progress bar rendering
@@ -102,8 +108,15 @@ const Leaderboard = () => {
               Top Impact Players
             </h2>
           </div>
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>
-            <span style={{ color: 'var(--primary)', fontWeight: 700 }}>2007 – 2025</span> &nbsp;|&nbsp; IPL Dataset
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <span><span style={{ color: 'var(--primary)', fontWeight: 700 }}>2007 – 2025</span> &nbsp;|&nbsp; IPL Dataset</span>
+            <select
+              value={selectedSeason}
+              onChange={(e) => setSelectedSeason(e.target.value)}
+              style={{ padding: '8px 30px 8px 15px', borderRadius: '8px', border: '1px solid var(--border)', background: 'rgba(15, 23, 42, 0.6)', color: 'var(--text-main)' }}
+            >
+              {seasonOptions.map(season => <option key={season} value={season}>{season}</option>)}
+            </select>
           </div>
         </div>
 
@@ -122,25 +135,38 @@ const Leaderboard = () => {
             ))}
           </div>
 
-          {/* Search box */}
-          <div style={{ position: 'relative' }}>
-            <input
-              type="text"
-              placeholder="Search player..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.05)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                padding: '10px 15px 10px 40px',
-                color: 'var(--text-main)',
-                fontSize: '0.9rem',
-                outline: 'none',
-                width: '220px',
-              }}
-            />
-            <Search size={16} style={{ position: 'absolute', left: '12px', top: '11px', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+          <div style={{ display: 'flex', gap: '15px' }}>
+            {/* Search box */}
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                placeholder="Search player..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  padding: '10px 15px 10px 40px',
+                  color: 'var(--text-main)',
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  width: '220px',
+                }}
+              />
+              <Search size={16} style={{ position: 'absolute', left: '12px', top: '11px', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+            </div>
+
+            {/* Sort dropdown */}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              style={{ padding: '10px 30px 10px 15px', borderRadius: '8px', border: '1px solid var(--border)', background: 'rgba(15, 23, 42, 0.6)', color: 'var(--text-main)' }}
+            >
+              <option value="Avg_IM">Sort: Average IM</option>
+              <option value="Peak_IM">Sort: Peak IM</option>
+              <option value="Last_Match">Sort: Last Match IM</option>
+            </select>
           </div>
         </div>
 
@@ -178,7 +204,8 @@ const Leaderboard = () => {
                 <tr>
                   <th style={{ width: '70px', textAlign: 'center' }}>Rank</th>
                    <th>Player</th>
-                   <th>Score Distribution</th>
+                   <th>Score Distribution (Avg)</th>
+                   <th style={{ textAlign: 'center', width: '90px' }}>Last Match</th>
                    <th style={{ textAlign: 'right', width: '90px' }}>Avg IM</th>
                    <th style={{ textAlign: 'right', width: '90px' }}>Peak IM</th>
                    <th style={{ textAlign: 'right', width: '80px' }}>Matches</th>
@@ -188,6 +215,7 @@ const Leaderboard = () => {
                 {filteredData.map((player, index) => {
                   const score = parseFloat(player.Avg_IM || player.Rolling_Impact || 0);
                   const peakScore = parseFloat(player.Peak_IM || 0);
+                  const lastMatchScore = parseFloat(player.Last_Match || 0);
                   const matches = player.Matches || '—';
                   const barWidth = ((score / maxScore) * 100).toFixed(1);
                   const barColor = index === 0
@@ -223,12 +251,17 @@ const Leaderboard = () => {
                           <div style={{ height: '100%', width: `${barWidth}%`, background: barColor, borderRadius: '4px', transition: 'width 0.6s ease' }} />
                         </div>
                       </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span style={{ fontWeight: sortBy === 'Last_Match' ? 900 : 600, color: sortBy === 'Last_Match' ? 'var(--primary)' : 'var(--text-main)' }}>
+                          {lastMatchScore ? lastMatchScore.toFixed(1) : '—'}
+                        </span>
+                      </td>
                       <td style={{ textAlign: 'right' }}>
-                        <span style={{ fontWeight: 900, color: index === 0 ? 'var(--accent-gold)' : 'var(--primary)', fontSize: '1.2rem' }}>
+                        <span style={{ fontWeight: sortBy === 'Avg_IM' ? 900 : 500, color: sortBy === 'Avg_IM' ? (index === 0 ? 'var(--accent-gold)' : 'var(--primary)') : 'var(--text-main)', fontSize: sortBy === 'Avg_IM' ? '1.2rem' : '1.1rem' }}>
                           {score.toFixed(1)}
                         </span>
                       </td>
-                      <td style={{ textAlign: 'right', color: 'var(--accent-green)', fontWeight: 700 }}>
+                      <td style={{ textAlign: 'right', color: sortBy === 'Peak_IM' ? 'var(--accent-green)' : 'var(--text-main)', fontWeight: sortBy === 'Peak_IM' ? 900 : 500, fontSize: sortBy === 'Peak_IM' ? '1.2rem' : '1.1rem' }}>
                         {peakScore.toFixed(1)}
                       </td>
                       <td style={{ textAlign: 'right' }}>

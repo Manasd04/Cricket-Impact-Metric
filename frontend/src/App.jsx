@@ -5,6 +5,8 @@ import './index.css';
 import Home from './pages/Home';
 import PlayerDashboard from './pages/PlayerDashboard';
 import Leaderboard from './pages/Leaderboard';
+import HeadToHead from './pages/HeadToHead';
+import About from './pages/About';
 
 function App() {
   return (
@@ -14,6 +16,8 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/player/:playerName" element={<PlayerDashboard />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/head-to-head" element={<HeadToHead />} />
+          <Route path="/about" element={<About />} />
         </Routes>
       </div>
     </Router>

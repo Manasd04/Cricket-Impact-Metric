@@ -6,6 +6,7 @@ import PlayerSearch from './PlayerSearch';
 const NAV_LINKS = [
   { to: '/', label: 'Home', icon: <Home size={17} />, exact: true },
   { to: '/leaderboard', label: 'Leaderboard', icon: <Trophy size={17} /> },
+  { to: '/head-to-head', label: 'H2H Battle', icon: <Activity size={17} /> }
 ];
 
 const Navbar = () => {

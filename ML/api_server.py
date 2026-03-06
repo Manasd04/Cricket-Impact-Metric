@@ -107,16 +107,28 @@ def leaderboards(season: str = "All Time"):
     def get_role_lb(r_name):
         df_r = df if r_name == "All" else df[df["role"] == r_name]
         if df_r.empty: return []
+        
+        # Sort chronologically so `last` extracts the actual most recent match
+        if "start_date" in df_r.columns:
+            df_r = df_r.copy()
+            df_r["_dt"] = pd.to_datetime(df_r["start_date"], errors="coerce")
+            df_r = df_r.sort_values(by="_dt")
+        
         lb = (df_r.groupby("player")
             .agg(Avg_IM=("Impact_Score","mean"),
                  Peak_IM=("Impact_Score","max"),
+                 Last_Match=("Impact_Score", "last"),
                  Matches=("match_id","nunique"),
                  Avg_Bat=("perf_bat","mean"),
                  Avg_Bowl=("perf_bowl","mean"))
             .round(2)
-            .sort_values("Avg_IM", ascending=False)
-            .head(15)
             .reset_index())
+            
+        # Minimum innings filter to prevent 1-match wonders from topping the leaderboard
+        min_matches = 10 if season == "All Time" else 3
+        lb = lb[lb["Matches"] >= min_matches]
+        
+        lb = lb.sort_values("Avg_IM", ascending=False).head(50)
         return clean_data(lb)
 
     return {

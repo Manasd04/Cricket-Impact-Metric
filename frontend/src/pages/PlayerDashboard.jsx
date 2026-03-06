@@ -25,11 +25,12 @@ const PlayerDashboard = () => {
   const [error, setError] = useState(false);
   const [selectedSeason, setSelectedSeason] = useState('All Time');
 
-  const fetchPlayer = async (name) => {
+  const fetchPlayer = async (name, seasonVal) => {
     setLoading(true);
     setError(false);
     try {
-      const response = await getPlayerImpact(name);
+      const apiSeason = seasonVal === 'All Time' ? undefined : seasonVal;
+      const response = await getPlayerImpact(name, { season: apiSeason });
       if (response.error) { setError(true); }
       else { setData(response); }
     } catch (err) {
@@ -40,8 +41,8 @@ const PlayerDashboard = () => {
   };
 
   useEffect(() => {
-    if (playerName) fetchPlayer(playerName);
-  }, [playerName]);
+    if (playerName) fetchPlayer(playerName, selectedSeason);
+  }, [playerName, selectedSeason]);
 
   const decodedName = decodeURIComponent(playerName);
   const summary = data?.summary || {};

@@ -13,7 +13,10 @@ const ImpactTrendChart = ({ data }) => {
   if (!data || data.length === 0) return null;
 
   const avg = data.reduce((s, d) => s + parseFloat(d.Impact_Score || 0), 0) / data.length;
-  const numberedData = data.map((d, i) => ({ ...d, inning: `I${i + 1}` }));
+  // Use numbered indices (e.g. "I1", "I2") as requested by the user
+  const formattedData = data.map((d, i) => {
+    return { ...d, axisLabel: `I${i + 1}` };
+  });
 
   const ChartComponent = chartType === 'area' ? AreaChart : LineChart;
 
@@ -46,7 +49,7 @@ const ImpactTrendChart = ({ data }) => {
 
       <div style={{ height: '300px', width: '100%' }}>
         <ResponsiveContainer width="100%" height="100%">
-          <ChartComponent data={numberedData} margin={{ top: 10, right: 20, bottom: 5, left: 0 }}>
+          <ChartComponent data={formattedData} margin={{ top: 10, right: 20, bottom: 5, left: 0 }}>
             <defs>
               <linearGradient id="impactGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.3} />
@@ -54,7 +57,14 @@ const ImpactTrendChart = ({ data }) => {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-            <XAxis dataKey="inning" tick={{ fill: 'var(--text-muted)', fontSize: 12 }} stroke="var(--border)" />
+            <XAxis 
+              dataKey="axisLabel" 
+              tick={{ fill: 'var(--text-muted)', fontSize: 10 }} 
+              stroke="var(--border)" 
+              angle={-45} 
+              textAnchor="end"
+              height={60}
+            />
             <YAxis domain={[0, 100]} stroke="var(--text-muted)" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
             {/* Average reference line */}
             <ReferenceLine y={avg} stroke="rgba(251,191,36,0.5)" strokeDasharray="6 3" label={{ value: `Avg ${avg.toFixed(0)}`, fill: '#fbbf24', fontSize: 11, position: 'right' }} />

@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Legend } from 'recharts';
-import { Swords, Cpu } from 'lucide-react';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Swords, Cpu, Activity, ArrowLeft } from 'lucide-react';
+import { getPlayersList, getPlayerImpact } from '../services/api';
+import Navbar from '../components/Navbar';
+import { useNavigate } from 'react-router-dom';
 
 const HeadToHead = () => {
+  const navigate = useNavigate();
   const [players, setPlayers] = useState([]);
   const [playerA, setPlayerA] = useState('');
   const [playerB, setPlayerB] = useState('');
@@ -12,12 +15,12 @@ const HeadToHead = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    axios.get(`http://127.0.0.1:5000/api/v1/players`)
+    getPlayersList()
       .then(res => {
-        setPlayers(res.data.players);
-        if (res.data.players.length >= 2) {
-          setPlayerA(res.data.players[0]);
-          setPlayerB(res.data.players[1]);
+        setPlayers(res.players);
+        if (res.players.length >= 2) {
+          setPlayerA(res.players[0]);
+          setPlayerB(res.players[1]);
         }
       })
       .catch(err => console.error(err));
@@ -28,11 +31,11 @@ const HeadToHead = () => {
     setLoading(true);
     try {
       const [resA, resB] = await Promise.all([
-        axios.get(`http://127.0.0.1:5000/api/v1/player/${encodeURIComponent(playerA)}`),
-        axios.get(`http://127.0.0.1:5000/api/v1/player/${encodeURIComponent(playerB)}`)
+        getPlayerImpact(playerA),
+        getPlayerImpact(playerB)
       ]);
-      setDataA(resA.data);
-      setDataB(resB.data);
+      setDataA(resA);
+      setDataB(resB);
     } catch (error) {
       console.error(error);
     }
@@ -49,13 +52,23 @@ const HeadToHead = () => {
   };
 
   return (
-    <div className="page-content animate-fade-in">
-      <div className="header-flex">
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <Swords size={34} style={{ color: 'var(--primary)' }} /> 
-          Head-to-Head Combats
-        </h2>
-      </div>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <Navbar />
+      <div className="page-content animate-fade-in" style={{ padding: '40px 50px', flexGrow: 1, maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '30px' }}>
+          <button
+            onClick={() => navigate(-1)}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 18px', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.9rem', transition: 'all 0.2s ease' }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+          >
+            <ArrowLeft size={16} /> Back
+          </button>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: '15px', margin: 0 }}>
+            <Swords size={34} style={{ color: 'var(--primary)' }} /> 
+            Head-to-Head Combats
+          </h2>
+        </div>
 
       <div className="glass-panel animate-fade-in delay-100" style={{ marginBottom: '30px', padding: '30px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '30px', alignItems: 'end' }}>
@@ -128,8 +141,64 @@ const HeadToHead = () => {
               </tbody>
             </table>
           </div>
+
+          <h3 className="section-header animate-fade-in delay-400" style={{ marginTop: '40px' }}>
+            <Activity size={22} style={{ color: 'var(--primary)' }} />
+            Tactical Vector Comparison
+          </h3>
+          <div className="glass-panel animate-fade-in delay-500" style={{ padding: '30px', height: '450px', display: 'flex', justifyContent: 'center' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart
+                cx="50%" cy="50%" outerRadius="75%"
+                data={[
+                  {
+                    subject: 'Batting Phase',
+                    A: dataA.summary['Avg Bat Perf'],
+                    B: dataB.summary['Avg Bat Perf'],
+                    fullMark: 5,
+                  },
+                  {
+                    subject: 'Bowling Control',
+                    A: dataA.summary['Avg Bowl Perf'] === 'N/A' ? 0 : dataA.summary['Avg Bowl Perf'],
+                    B: dataB.summary['Avg Bowl Perf'] === 'N/A' ? 0 : dataB.summary['Avg Bowl Perf'],
+                    fullMark: 5,
+                  },
+                  {
+                    subject: 'Match Context',
+                    A: dataA.summary['Avg Context'] || 1,
+                    B: dataB.summary['Avg Context'] || 1,
+                    fullMark: 1.5,
+                  },
+                  {
+                    subject: 'Crisis Situation',
+                    A: dataA.summary['Avg Situation'] || 1,
+                    B: dataB.summary['Avg Situation'] || 1,
+                    fullMark: 1.5,
+                  },
+                ]}
+              >
+                <PolarGrid gridType="polygon" stroke="rgba(255,255,255,0.1)" />
+                <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--text-muted)', fontSize: 13, fontWeight: 600 }} />
+                <Tooltip
+                  wrapperStyle={{ outline: 'none' }}
+                  contentStyle={{
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    color: 'var(--text-main)',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
+                  }}
+                  itemStyle={{ fontWeight: 800 }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
+                <Radar name={playerA} dataKey="A" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.3} />
+                <Radar name={playerB} dataKey="B" stroke="var(--accent-red)" fill="var(--accent-red)" fillOpacity={0.3} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
         </>
       )}
+      </div>
     </div>
   );
 };
