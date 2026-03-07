@@ -5,6 +5,7 @@ import os
 import math
 from src.pipeline import CricketImpactMetric
 from src.data_loader import load_data as _load_raw
+from src.rolling_metric import compute_rolling_impact
 
 app = FastAPI(title="Cricket Impact API")
 
@@ -112,16 +113,19 @@ def health():
 @app.get("/api/tournament")
 def tournament_data(season: str = "All Time", role: str = "All"):
     df = impact_df.copy()
-    roll_df = rolling_df.copy()
-    
     if season != "All Time" and not df.empty:
         df = df[df["season"].astype(str) == season]
     if role != "All" and not df.empty:
         df = df[df["role"] == role]
-        roll_df = roll_df[roll_df["role"] == role]
         
     if df.empty:
         return {"kpis": {}, "top_rolling": [], "top_matches": [], "impact_distribution": []}
+
+    roll_df = compute_rolling_impact(df)
+    # Re-attach role to roll_df for frontend display
+    if "role" in df.columns:
+        player_roles = df.groupby("player")["role"].first().reset_index()
+        roll_df = roll_df.merge(player_roles, on="player", how="left")
 
     avg_im  = float(df["Impact_Score"].mean())
     top_im  = float(df["Impact_Score"].max())
@@ -149,7 +153,6 @@ def tournament_data(season: str = "All Time", role: str = "All"):
 @app.get("/api/leaderboard")
 def leaderboards(season: str = "All Time", team: str = "All"):
     df = impact_df.copy()
-    roll_df = rolling_df.copy()
     if df.empty: return {}
 
     if season != "All Time":
@@ -158,8 +161,9 @@ def leaderboards(season: str = "All Time", team: str = "All"):
     # Team filter
     if team != "All" and 'team' in df.columns:
         df = df[df["team"] == team]
-        if 'team' in roll_df.columns:
-            roll_df = roll_df[roll_df["team"] == team]
+
+    # Compute rolling impact dynamically based on the filtered matches
+    roll_df_computed = compute_rolling_impact(df)
 
     def get_role_lb(r_name):
         df_r = df if r_name == "All" else df[df["role"] == r_name]
@@ -184,7 +188,7 @@ def leaderboards(season: str = "All Time", team: str = "All"):
 
         lb = df_r.groupby("player").agg(**agg_cols).round(2).reset_index()
 
-        lb = lb.merge(roll_df[["player", "Rolling_Impact"]], on="player", how="left")
+        lb = lb.merge(roll_df_computed[["player", "Rolling_Impact"]], on="player", how="left")
         lb["Rolling_Impact"] = lb["Rolling_Impact"].fillna(lb["Avg_IM"])
 
         # Minimum innings filter to prevent 1-match wonders from topping the leaderboard
