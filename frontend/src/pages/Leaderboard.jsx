@@ -38,7 +38,7 @@ const Leaderboard = () => {
   }, [selectedSeason]);
 
   // Generate Season Options (2007 to 2025)
-  const seasonOptions = ['All Time', ...Array.from({length: 19}, (_, i) => (2025 - i).toString())];
+  const seasonOptions = ['All Time', ...Array.from({ length: 19 }, (_, i) => (2025 - i).toString())];
 
   // Active role selects from pre-segmented API data
   const allData = rawData[activeRole] || [];
@@ -55,11 +55,7 @@ const Leaderboard = () => {
     return result.slice(0, 10); // Enforce Top 10 limit
   }, [allData, searchQuery, sortBy]);
 
-  // Compute the max score for progress bar rendering
-  const maxScore = useMemo(() => {
-    if (filteredData.length === 0) return 100;
-    return Math.max(...filteredData.map(p => parseFloat(p.Rolling_Impact || 0)));
-  }, [filteredData]);
+  const maxScore = 100;
 
   const roleTabStyle = (role) => ({
     padding: '8px 20px',
@@ -165,7 +161,7 @@ const Leaderboard = () => {
             >
               <option value="Avg_IM">Sort: Average IM</option>
               <option value="Peak_IM">Sort: Peak IM</option>
-              <option value="Last_Match">Sort: Last Match IM</option>
+              <option value="Rolling_Impact">Sort: Rolling Impact</option>
             </select>
           </div>
         </div>
@@ -203,24 +199,29 @@ const Leaderboard = () => {
               <thead>
                 <tr>
                   <th style={{ width: '70px', textAlign: 'center' }}>Rank</th>
-                   <th>Player</th>
-                   <th>Score Distribution (Avg)</th>
-                   <th style={{ textAlign: 'center', width: '90px' }}>Last Match</th>
-                   <th style={{ textAlign: 'right', width: '90px' }}>Avg IM</th>
-                   <th style={{ textAlign: 'right', width: '90px' }}>Peak IM</th>
-                   <th style={{ textAlign: 'right', width: '80px' }}>Matches</th>
+                  <th>Player</th>
+                  <th>Score Distribution ({sortBy.replace('_', ' ')})</th>
+                  <th style={{ textAlign: 'center', width: '110px' }}>Rolling Impact</th>
+                  <th style={{ textAlign: 'right', width: '90px' }}>Avg IM</th>
+                  <th style={{ textAlign: 'right', width: '90px' }}>Peak IM</th>
+                  <th style={{ textAlign: 'right', width: '80px' }}>Matches</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredData.map((player, index) => {
-                  const score = parseFloat(player.Avg_IM || player.Rolling_Impact || 0);
+                  const avgScore = parseFloat(player.Avg_IM || 0);
                   const peakScore = parseFloat(player.Peak_IM || 0);
-                  const lastMatchScore = parseFloat(player.Last_Match || 0);
+                  const rollingScore = parseFloat(player.Rolling_Impact || 0);
                   const matches = player.Matches || '—';
-                  const barWidth = ((score / maxScore) * 100).toFixed(1);
-                  const barColor = index === 0
-                    ? 'var(--accent-gold)'
-                    : index < 3 ? 'var(--primary)' : 'rgba(56,189,248,0.5)';
+
+                  let distributionScore = avgScore;
+                  if (sortBy === 'Peak_IM') distributionScore = peakScore;
+                  if (sortBy === 'Rolling_Impact') distributionScore = rollingScore;
+
+                  // The impact score is out of 100.
+                  const barWidth = Math.min(Math.max(distributionScore, 0), 100).toFixed(1);
+
+                  const barColor = index < 3 ? 'var(--primary)' : 'rgba(56,189,248,0.5)';
 
                   return (
                     <tr
@@ -252,13 +253,13 @@ const Leaderboard = () => {
                         </div>
                       </td>
                       <td style={{ textAlign: 'center' }}>
-                        <span style={{ fontWeight: sortBy === 'Last_Match' ? 900 : 600, color: sortBy === 'Last_Match' ? 'var(--primary)' : 'var(--text-main)' }}>
-                          {lastMatchScore ? lastMatchScore.toFixed(1) : '—'}
+                        <span style={{ fontWeight: sortBy === 'Rolling_Impact' ? 900 : 600, color: sortBy === 'Rolling_Impact' ? 'var(--primary)' : 'var(--text-main)', fontSize: sortBy === 'Rolling_Impact' ? '1.2rem' : '1.1rem' }}>
+                          {rollingScore ? rollingScore.toFixed(1) : '—'}
                         </span>
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <span style={{ fontWeight: sortBy === 'Avg_IM' ? 900 : 500, color: sortBy === 'Avg_IM' ? (index === 0 ? 'var(--accent-gold)' : 'var(--primary)') : 'var(--text-main)', fontSize: sortBy === 'Avg_IM' ? '1.2rem' : '1.1rem' }}>
-                          {score.toFixed(1)}
+                        <span style={{ fontWeight: sortBy === 'Avg_IM' ? 900 : 500, color: sortBy === 'Avg_IM' ? 'var(--primary)' : 'var(--text-main)', fontSize: sortBy === 'Avg_IM' ? '1.2rem' : '1.1rem' }}>
+                          {avgScore.toFixed(1)}
                         </span>
                       </td>
                       <td style={{ textAlign: 'right', color: sortBy === 'Peak_IM' ? 'var(--accent-green)' : 'var(--text-main)', fontWeight: sortBy === 'Peak_IM' ? 900 : 500, fontSize: sortBy === 'Peak_IM' ? '1.2rem' : '1.1rem' }}>

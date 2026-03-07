@@ -99,6 +99,7 @@ def tournament_data(season: str = "All Time", role: str = "All"):
 @app.get("/api/leaderboard")
 def leaderboards(season: str = "All Time"):
     df = impact_df.copy()
+    roll_df = rolling_df.copy()
     if df.empty: return {}
     
     if season != "All Time":
@@ -117,7 +118,6 @@ def leaderboards(season: str = "All Time"):
         lb = (df_r.groupby("player")
             .agg(Avg_IM=("Impact_Score","mean"),
                  Peak_IM=("Impact_Score","max"),
-                 Last_Match=("Impact_Score", "last"),
                  Matches=("match_id","nunique"),
                  Avg_Bat=("perf_bat","mean"),
                  Avg_Bowl=("perf_bowl","mean"),
@@ -125,8 +125,11 @@ def leaderboards(season: str = "All Time"):
             .round(2)
             .reset_index())
             
+        lb = lb.merge(roll_df[["player", "Rolling_Impact"]], on="player", how="left")
+        lb["Rolling_Impact"] = lb["Rolling_Impact"].fillna(lb["Avg_IM"])
+            
         # Minimum innings filter to prevent 1-match wonders from topping the leaderboard
-        min_matches = 10 if season == "All Time" else 3
+        min_matches = 30 if season == "All Time" else 3
         lb = lb[lb["Matches"] >= min_matches]
         
         lb = lb.sort_values("Avg_IM", ascending=False).head(50)

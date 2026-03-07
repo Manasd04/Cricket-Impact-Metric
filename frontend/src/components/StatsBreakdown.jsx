@@ -2,29 +2,37 @@ import React from 'react';
 import { Target, Zap, Shield, TrendingUp } from 'lucide-react';
 
 const StatsBreakdown = ({ performance, context, pressure }) => {
+  // ML clipping ranges (from impact_model.py):
+  //   Performance (perf_bat + perf_bowl): raw scores, typical max ~10
+  //   Context:   np.clip(Context,   0.8, 1.4)  → range 0.8–1.4
+  //   Situation: np.clip(Situation, 1.0, 1.5)  → range 1.0–1.5
+  const contextPct = Math.min(100, (((parseFloat(context) - 0.8) / (1.4 - 0.8)) * 100));
+  const pressurePct = Math.min(100, (((parseFloat(pressure) - 1.0) / (1.5 - 1.0)) * 100));
+  const perfPct = Math.min(100, ((parseFloat(performance) / 10) * 100));
+
   const stats = [
     {
       icon: <Shield color="#38bdf8" size={22} />,
       label: 'Performance Impact',
-      desc: 'Batting & Bowling output',
+      desc: 'Batting & Bowling output (0–10)',
       value: parseFloat(performance),
-      max: 30,
+      barPct: perfPct,
       color: '56, 189, 248',
     },
     {
       icon: <Target color="#10b981" size={22} />,
       label: 'Match Context',
-      desc: 'Situation & phase modifier',
+      desc: 'Situation & phase modifier (0.8–1.4)',
       value: parseFloat(context),
-      max: 3,
+      barPct: contextPct,
       color: '16, 185, 129',
     },
     {
       icon: <Zap color="#f59e0b" size={22} />,
       label: 'Pressure Factor',
-      desc: 'Under-fire multiplier',
+      desc: 'Under-fire multiplier (1.0–1.5)',
       value: parseFloat(pressure),
-      max: 3,
+      barPct: pressurePct,
       color: '245, 158, 11',
     },
   ];
@@ -40,8 +48,7 @@ const StatsBreakdown = ({ performance, context, pressure }) => {
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {stats.map(({ icon, label, desc, value, max, color }) => {
-          const barPct = Math.min(100, ((value / max) * 100)).toFixed(0);
+        {stats.map(({ icon, label, desc, value, barPct, color }) => {
           const displayValue = isNaN(value) ? '—' : value.toFixed(2);
           return (
             <div key={label}>
