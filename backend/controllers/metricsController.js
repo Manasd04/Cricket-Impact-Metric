@@ -29,12 +29,12 @@ exports.getTournamentData = async (req, res) => {
     }
 };
 
-// GET /api/v1/leaderboard?season=
+// GET /api/v1/leaderboard?season=&team=
 exports.getLeaderboards = async (req, res) => {
     try {
-        const { season } = req.query;
+        const { season, team } = req.query;
         const response = await mlClient.get('/leaderboard', {
-            params: { season }
+            params: { season, team }
         });
         res.json(response.data);
     } catch (error) {
@@ -49,6 +49,16 @@ exports.getAllPlayers = async (req, res) => {
         res.json(response.data);
     } catch (error) {
         handleError(res, error, 'getAllPlayers');
+    }
+};
+
+// GET /api/v1/teams
+exports.getAllTeams = async (req, res) => {
+    try {
+        const response = await mlClient.get('/teams');
+        res.json(response.data);
+    } catch (error) {
+        handleError(res, error, 'getAllTeams');
     }
 };
 

@@ -14,6 +14,9 @@ router.get('/leaderboard', metricsController.getLeaderboards);
 // Full players list for search dropdowns
 router.get('/players', metricsController.getAllPlayers);
 
+// All IPL teams list
+router.get('/teams', metricsController.getAllTeams);
+
 // Individual player analytics profile (with optional window and season filters)
 router.get('/player/:playerName', metricsController.getPlayerProfile);
 

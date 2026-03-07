@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Navbar from '../components/Navbar';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { getLeaderboard } from '../services/api';
-import { Trophy, ArrowLeft, Search, Filter, TrendingUp, Users, ChevronRight } from 'lucide-react';
+import { getLeaderboard, getTeams } from '../services/api';
+import { Trophy, ArrowLeft, Search, TrendingUp, Users, ChevronRight, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const ROLES = ['All', 'Batter', 'Bowler', 'Allrounder'];
@@ -13,40 +13,40 @@ const Leaderboard = () => {
   const [activeRole, setActiveRole] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSeason, setSelectedSeason] = useState('All Time');
+  const [selectedTeam, setSelectedTeam] = useState('All');
+  const [teams, setTeams] = useState([]);
   const [sortBy, setSortBy] = useState('Avg_IM');
   const navigate = useNavigate();
+
+  // Fetch team list once on mount
+  useEffect(() => {
+    getTeams()
+      .then(res => { if (res?.teams) setTeams(res.teams); })
+      .catch(err => console.error('Teams fetch error:', err));
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
         const seasonParam = selectedSeason === 'All Time' ? undefined : selectedSeason;
-        const response = await getLeaderboard(seasonParam);
-        // New endpoint returns { All: [...], Batter: [...], Bowler: [...], Allrounder: [...] }
+        const teamParam   = selectedTeam  === 'All'      ? undefined : selectedTeam;
+        const response = await getLeaderboard(seasonParam, teamParam);
         if (response && response.All) {
           setRawData(response);
         } else if (response && response.top_rolling) {
-          // Fallback: legacy tournament format
           setRawData({ All: response.top_rolling, Batter: [], Bowler: [], Allrounder: [] });
         }
       } catch (error) {
-        console.error("Error fetching leaderboard", error);
+        console.error('Error fetching leaderboard', error);
       }
       setLoading(false);
     };
     fetchData();
-  }, [selectedSeason]);
+  }, [selectedSeason, selectedTeam]);
 
   // Generate Season Options (2008 to 2025)
-  // Derive seasons dynamically from data so dropdown stays accurate as dataset grows
-  const seasonOptions = useMemo(() => {
-    const allSeasons = new Set();
-    Object.values(rawData).forEach(list =>
-      list.forEach(p => { if (p.season) allSeasons.add(String(p.season)); })
-    );
-    const sorted = [...allSeasons].sort((a, b) => b.localeCompare(a));
-    return ['All Time', ...sorted];
-  }, [rawData]);
+  const seasonOptions = ['All Time', ...Array.from({ length: 18 }, (_, i) => (2025 - i).toString())];
 
   // Active role selects from pre-segmented API data
   const allData = rawData[activeRole] || [];
@@ -120,15 +120,30 @@ const Leaderboard = () => {
               Top Impact Players
             </h2>
           </div>
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <span><span style={{ color: 'var(--primary)', fontWeight: 700 }}>2008 – 2025</span> &nbsp;|&nbsp; IPL Dataset</span>
+
+            {/* Season filter */}
             <select
               value={selectedSeason}
               onChange={(e) => setSelectedSeason(e.target.value)}
-              style={{ padding: '8px 30px 8px 15px', borderRadius: '8px', border: '1px solid var(--border)', background: 'rgba(15, 23, 42, 0.6)', color: 'var(--text-main)' }}
+              style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'rgba(15, 23, 42, 0.6)', color: 'var(--text-main)', cursor: 'pointer' }}
             >
-              {seasonOptions.map(season => <option key={season} value={season}>{season}</option>)}
+              {seasonOptions.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
+
+            {/* Team filter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Shield size={15} style={{ color: 'var(--accent-gold)' }} />
+              <select
+                value={selectedTeam}
+                onChange={(e) => setSelectedTeam(e.target.value)}
+                style={{ padding: '8px 14px', borderRadius: '8px', border: `1px solid ${selectedTeam !== 'All' ? 'var(--accent-gold)' : 'var(--border)'}`, background: 'rgba(15, 23, 42, 0.6)', color: selectedTeam !== 'All' ? 'var(--accent-gold)' : 'var(--text-main)', cursor: 'pointer', fontWeight: selectedTeam !== 'All' ? 700 : 400 }}
+              >
+                <option value="All">All Teams</option>
+                {teams.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
           </div>
         </div>
 

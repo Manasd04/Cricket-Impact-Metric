@@ -34,9 +34,9 @@ export const getTournamentData = async (season, role) => {
 };
 
 // Role-split leaderboard (returns { All, Batter, Bowler, Allrounder })
-export const getLeaderboard = async (season) => {
+export const getLeaderboard = async (season, team) => {
   const response = await apiClient.get('/leaderboard', {
-    params: { season }
+    params: { season, team }
   });
   return response.data;
 };
@@ -44,5 +44,11 @@ export const getLeaderboard = async (season) => {
 // Health check — ping the backend and ML API
 export const checkHealth = async () => {
   const response = await apiClient.get('/health');
+  return response.data;
+};
+
+// All IPL teams (for team filter dropdown)
+export const getTeams = async () => {
+  const response = await apiClient.get('/teams');
   return response.data;
 };

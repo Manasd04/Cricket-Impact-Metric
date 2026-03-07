@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import math
 from src.pipeline import CricketImpactMetric
+from src.data_loader import load_data as _load_raw
 
 app = FastAPI(title="Cricket Impact API")
 
@@ -35,6 +36,31 @@ def classify_role(avg_bat_perf, avg_bowl_perf):
 def clean_data(df):
     return df.fillna("").to_dict(orient="records")
 
+def _build_player_team(raw_df):
+    """Build a (match_id, player) -> team lookup from ball-by-ball data."""
+    frames = []
+    if 'batting_team' in raw_df.columns and 'striker' in raw_df.columns:
+        bat = (
+            raw_df[['match_id', 'striker', 'batting_team']]
+            .rename(columns={'striker': 'player', 'batting_team': 'team'})
+            .drop_duplicates(['match_id', 'player'])
+        )
+        frames.append(bat)
+    if 'bowling_team' in raw_df.columns and 'bowler' in raw_df.columns:
+        bowl = (
+            raw_df[['match_id', 'bowler', 'bowling_team']]
+            .rename(columns={'bowler': 'player', 'bowling_team': 'team'})
+            .drop_duplicates(['match_id', 'player'])
+        )
+        frames.append(bowl)
+    if not frames:
+        return pd.DataFrame(columns=['match_id', 'player', 'team'])
+    return (
+        pd.concat(frames)
+        .drop_duplicates(['match_id', 'player'])
+        .reset_index(drop=True)
+    )
+
 @app.on_event("startup")
 def load_data():
     global impact_df, rolling_df
@@ -43,6 +69,7 @@ def load_data():
         metric = CricketImpactMetric(DATA_DIRECTORY)
         impact_df, rolling_df = metric.run_pipeline()
 
+        # ── Role classification ────────────────────────────────────────────
         player_role_map = (
             impact_df.groupby("player")
             .agg(avg_bat=("perf_bat","mean"), avg_bowl=("perf_bowl","mean"))
@@ -51,7 +78,30 @@ def load_data():
         )
         impact_df = impact_df.merge(player_role_map.reset_index(), on="player", how="left")
         rolling_df = rolling_df.merge(player_role_map.reset_index(), on="player", how="left")
-        print(f"Data loaded perfectly. {len(impact_df)} records.")
+
+        # ── Team extraction ───────────────────────────────────────────────
+        # Re-read raw data (CSVs are cached by OS — fast second read)
+        raw_df = _load_raw(DATA_DIRECTORY)
+        player_team = _build_player_team(raw_df)
+
+        if not player_team.empty:
+            impact_df = impact_df.merge(
+                player_team, on=['match_id', 'player'], how='left'
+            )
+            impact_df['team'] = impact_df['team'].fillna('Unknown')
+
+            # Most frequent team per player → attach to rolling_df
+            team_mode = (
+                impact_df.groupby('player')['team']
+                .agg(lambda x: x.mode().iloc[0] if not x.empty else 'Unknown')
+                .rename('team')
+                .reset_index()
+            )
+            rolling_df = rolling_df.merge(team_mode, on='player', how='left')
+            rolling_df['team'] = rolling_df['team'].fillna('Unknown')
+
+        print(f"Data loaded successfully. {len(impact_df)} records | "
+              f"{impact_df['team'].nunique() if 'team' in impact_df.columns else 0} teams detected.")
     except Exception as e:
         print(f"Error loading data: {e}")
 
@@ -97,41 +147,50 @@ def tournament_data(season: str = "All Time", role: str = "All"):
     }
 
 @app.get("/api/leaderboard")
-def leaderboards(season: str = "All Time"):
+def leaderboards(season: str = "All Time", team: str = "All"):
     df = impact_df.copy()
     roll_df = rolling_df.copy()
     if df.empty: return {}
-    
+
     if season != "All Time":
         df = df[df["season"].astype(str) == season]
-        
+
+    # Team filter
+    if team != "All" and 'team' in df.columns:
+        df = df[df["team"] == team]
+        if 'team' in roll_df.columns:
+            roll_df = roll_df[roll_df["team"] == team]
+
     def get_role_lb(r_name):
         df_r = df if r_name == "All" else df[df["role"] == r_name]
         if df_r.empty: return []
-        
+
         # Sort chronologically so `last` extracts the actual most recent match
         if "start_date" in df_r.columns:
             df_r = df_r.copy()
             df_r["_dt"] = pd.to_datetime(df_r["start_date"], errors="coerce")
             df_r = df_r.sort_values(by="_dt")
-        
-        lb = (df_r.groupby("player")
-            .agg(Avg_IM=("Impact_Score","mean"),
-                 Peak_IM=("Impact_Score","max"),
-                 Matches=("match_id","nunique"),
-                 Avg_Bat=("perf_bat","mean"),
-                 Avg_Bowl=("perf_bowl","mean"),
-                 role=("role", "first"))
-            .round(2)
-            .reset_index())
-            
+
+        agg_cols = dict(
+            Avg_IM=("Impact_Score", "mean"),
+            Peak_IM=("Impact_Score", "max"),
+            Matches=("match_id", "nunique"),
+            Avg_Bat=("perf_bat", "mean"),
+            Avg_Bowl=("perf_bowl", "mean"),
+            role=("role", "first"),
+        )
+        if 'team' in df_r.columns:
+            agg_cols['team'] = ('team', 'first')
+
+        lb = df_r.groupby("player").agg(**agg_cols).round(2).reset_index()
+
         lb = lb.merge(roll_df[["player", "Rolling_Impact"]], on="player", how="left")
         lb["Rolling_Impact"] = lb["Rolling_Impact"].fillna(lb["Avg_IM"])
-            
+
         # Minimum innings filter to prevent 1-match wonders from topping the leaderboard
-        min_matches = 30 if season == "All Time" else 3
+        min_matches = 30 if season == "All Time" and team == "All" else 3
         lb = lb[lb["Matches"] >= min_matches]
-        
+
         lb = lb.sort_values("Avg_IM", ascending=False)
         return clean_data(lb)
 
@@ -147,6 +206,17 @@ def all_players():
     if impact_df.empty: return {"players": []}
     players = sorted(impact_df["player"].dropna().unique())
     return {"players": players}
+
+@app.get("/api/teams")
+def all_teams():
+    """Returns all unique IPL team names found in the dataset."""
+    if impact_df.empty or 'team' not in impact_df.columns:
+        return {"teams": []}
+    teams = sorted([
+        t for t in impact_df["team"].dropna().unique()
+        if t and t != 'Unknown'
+    ])
+    return {"teams": teams}
 
 @app.get("/api/player/{player_name}")
 def player_profile(player_name: str, window: str = "All Time", season: str = "All"):
