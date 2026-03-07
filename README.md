@@ -40,8 +40,15 @@ Impact = Performance × Match Context × Game Situation
 | **Performance** | Runs, wickets, economy, dot balls, boundaries |
 | **Match Context** | Required run rate, wickets fallen, phase of innings, opposition quality |
 | **Game Situation** | Pressure intensity, match importance (league vs playoff), current form |
+| **H2H Combats** | Direct 1v1 comparisons tracking phase-specific tactical vectors |
 
 A 60-run knock chasing 190 with 5 wickets down in the death overs scores far higher than the same innings in a comfortable chase — the metric quantifies exactly that difference.
+
+### Key Features
+* **Role-Specific Leaderboards:** View the highest impact Batters, Bowlers, and Allrounders across any season.
+* **Team Filtering:** Instantly filter leaderboards to see the most impactful players for specific IPL franchises (e.g. Chennai Super Kings, Mumbai Indians).
+* **Head-to-Head Combats:** Pit any two players against each other in a tactical radar simulation mapping batting phase, bowling control, context, and crisis situations.
+* **Player Dashboards:** Analyze an individual player's rolling form over custom windows (last 10, 25, 50 innings) vs their career baseline.
 
 ---
 
@@ -275,8 +282,9 @@ All endpoints are served by the FastAPI server at `http://localhost:8000`.
 |---|---|---|
 | `GET` | `/api/health` | Health check — confirms data is loaded |
 | `GET` | `/api/leaderboard` | Top players ranked by average Impact Score |
-| `GET` | `/api/leaderboard?season=2023` | Leaderboard filtered by IPL season |
+| `GET` | `/api/leaderboard?season=2023&team=Chennai+Super+Kings` | Leaderboard filtered by IPL season and/or franchise |
 | `GET` | `/api/players` | List of all player names |
+| `GET` | `/api/teams` | List of all IPL teams in dataset |
 | `GET` | `/api/player/{name}` | Full impact history for a specific player |
 | `GET` | `/api/player/{name}?window=Last 10` | Player data filtered to last 10 innings |
 | `GET` | `/api/tournament` | Tournament-level KPIs and top performers |

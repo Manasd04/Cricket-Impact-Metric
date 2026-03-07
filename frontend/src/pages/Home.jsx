@@ -35,7 +35,7 @@ const Home = () => {
           </p>
 
           {/* Search card */}
-          <div className="glass-panel hover-glow" style={{ width: '100%', maxWidth: '600px', padding: '40px', position: 'relative', overflow: 'visible' }}>
+          <div className="glass-panel hover-glow" style={{ width: '100%', maxWidth: '600px', padding: '40px', position: 'relative', overflow: 'visible', zIndex: 50 }}>
             <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '3px', background: 'linear-gradient(90deg, transparent, var(--primary), transparent)' }} />
             <PlayerSearch />
           </div>

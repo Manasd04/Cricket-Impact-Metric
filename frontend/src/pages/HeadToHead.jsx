@@ -71,7 +71,7 @@ const HeadToHead = () => {
           </h2>
         </div>
 
-        <div className="glass-panel animate-fade-in delay-100" style={{ marginBottom: '30px', padding: '30px', overflow: 'visible' }}>
+        <div className="glass-panel animate-fade-in delay-100" style={{ marginBottom: '30px', padding: '30px', overflow: 'visible', position: 'relative', zIndex: 50 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '30px', alignItems: 'end' }}>
             <div>
               <label className="font-bold" style={{ color: 'var(--primary)', marginBottom: '8px', display: 'block' }}>Operator Alpha:</label>

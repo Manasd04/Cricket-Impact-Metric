@@ -35,7 +35,7 @@ const PlayerCombobox = ({ value, onChange, players }) => {
     };
 
     return (
-        <div ref={wrapperRef} style={{ position: 'relative', width: '100%' }}>
+        <div ref={wrapperRef} style={{ position: 'relative', width: '100%', zIndex: 10 }}>
             <input
                 type="text"
                 value={searchTerm}
