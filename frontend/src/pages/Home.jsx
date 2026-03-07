@@ -6,7 +6,7 @@ import { Activity, Target, Database, Zap } from 'lucide-react';
 const FEATURES = [
   { icon: <Activity size={22} color="#38bdf8" />, title: 'Rolling Impact', desc: 'Last 10 innings weighted form' },
   { icon: <Target size={22} color="#10b981" />, title: 'Context-Aware', desc: 'Phase, wickets & opposition' },
-  { icon: <Database size={22} color="#a78bfa" />, title: '2007–2025 Data', desc: 'Full IPL ball-by-ball dataset' },
+  { icon: <Database size={22} color="#a78bfa" />, title: '2008–2025 Data', desc: 'Full IPL ball-by-ball dataset' },
   { icon: <Zap size={22} color="#fbbf24" />, title: 'Pressure Index', desc: 'Under-fire performance metric' },
 ];
 
@@ -23,11 +23,7 @@ const Home = () => {
         <div style={{ position: 'absolute', top: '20%', left: '10%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(167,139,250,0.04) 0%, transparent 70%)', zIndex: 0, pointerEvents: 'none' }} />
 
         <div style={{ zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0' }}>
-          {/* Badge */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', background: 'rgba(56,189,248,0.1)', padding: '8px 20px', borderRadius: '30px', border: '1px solid rgba(56,189,248,0.3)', marginBottom: '24px' }}>
-            <Activity color="var(--primary)" size={18} />
-            <span style={{ color: 'var(--primary)', fontWeight: 700, letterSpacing: '2px', fontSize: '0.85rem' }}>HACKATHON 2025</span>
-          </div>
+
 
           {/* Title */}
           <h1 style={{ fontSize: '5rem', fontWeight: 900, marginBottom: '18px', background: 'linear-gradient(135deg, #ffffff 40%, var(--primary))', WebkitBackgroundClip: 'text', color: 'transparent', letterSpacing: '-3px', lineHeight: 1 }}>
@@ -35,7 +31,7 @@ const Home = () => {
             <br />Metric
           </h1>
           <p style={{ fontSize: '1.15rem', color: 'var(--text-muted)', marginBottom: '40px', maxWidth: '550px', lineHeight: 1.7 }}>
-            Quantify a cricketer's true match influence beyond runs and wickets. Powered by ball-by-ball IPL data from 2007 to 2025.
+            Quantify a cricketer's true match influence beyond runs and wickets. Powered by ball-by-ball IPL data from 2008 to 2025.
           </p>
 
           {/* Search card */}
