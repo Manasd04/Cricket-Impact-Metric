@@ -37,8 +37,8 @@ const Leaderboard = () => {
     fetchData();
   }, [selectedSeason]);
 
-  // Generate Season Options (2007 to 2025)
-  const seasonOptions = ['All Time', ...Array.from({ length: 19 }, (_, i) => (2025 - i).toString())];
+  // Generate Season Options (2008 to 2025)
+  const seasonOptions = ['All Time', ...Array.from({ length: 18 }, (_, i) => (2025 - i).toString())];
 
   // Active role selects from pre-segmented API data
   const allData = rawData[activeRole] || [];
@@ -105,7 +105,7 @@ const Leaderboard = () => {
             </h2>
           </div>
           <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <span><span style={{ color: 'var(--primary)', fontWeight: 700 }}>2007 – 2025</span> &nbsp;|&nbsp; IPL Dataset</span>
+            <span><span style={{ color: 'var(--primary)', fontWeight: 700 }}>2008 – 2025</span> &nbsp;|&nbsp; IPL Dataset</span>
             <select
               value={selectedSeason}
               onChange={(e) => setSelectedSeason(e.target.value)}
