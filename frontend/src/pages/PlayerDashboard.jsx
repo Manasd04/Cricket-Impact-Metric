@@ -19,7 +19,7 @@ const PlayerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [selectedSeason, setSelectedSeason] = useState('All Time');
-  const [selectedWindow, setSelectedWindow] = useState('Last 10');
+  const [selectedWindow, setSelectedWindow] = useState('All Time');
 
   const fetchPlayer = async (name, seasonVal, windowVal) => {
     setLoading(true);
@@ -53,7 +53,7 @@ const PlayerDashboard = () => {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Navbar />
       <div style={{ padding: '30px 50px', flexGrow: 1, maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
-        
+
         {/* Page Header with back nav and season filter */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '30px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -117,7 +117,7 @@ const PlayerDashboard = () => {
           </div>
         ) : data ? (
           <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
-            
+
             {/* Row 1: Player Card + Impact Meter + Stats Breakdown */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '25px' }}>
               <PlayerCard
@@ -135,12 +135,12 @@ const PlayerDashboard = () => {
 
             {/* Row 2: Impact Trend + Quick Stats */}
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '25px' }}>
-              <ImpactTrendChart 
-                data={data.trend} 
-                window={selectedWindow} 
-                onWindowChange={setSelectedWindow} 
+              <ImpactTrendChart
+                data={data.trend}
+                window={selectedWindow}
+                onWindowChange={setSelectedWindow}
               />
-              
+
               {/* Quick Stats Panel */}
               <div className="glass-panel animate-fade-in delay-400" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
                 <h3 className="section-header">Quick Stats</h3>

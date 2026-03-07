@@ -8,7 +8,7 @@ const CustomDot = (props) => {
   return <circle cx={cx} cy={cy} r={6} fill={color} stroke="var(--bg-surface)" strokeWidth={2} />;
 };
 
-const ImpactTrendChart = ({ data, window = 'Last 10', onWindowChange }) => {
+const ImpactTrendChart = ({ data, window = 'All Time', onWindowChange }) => {
   if (!data || data.length === 0) return null;
 
   const avg = data.reduce((s, d) => s + parseFloat(d.Impact_Score || 0), 0) / data.length;
@@ -30,10 +30,10 @@ const ImpactTrendChart = ({ data, window = 'Last 10', onWindowChange }) => {
           <select
             value={window}
             onChange={(e) => onWindowChange(e.target.value)}
-            style={{ 
-              padding: '6px 12px', fontSize: '0.85rem', borderRadius: '6px', 
-              background: 'rgba(15, 23, 42, 0.6)', color: 'var(--text-main)', 
-              border: '1px solid var(--border)', outline: 'none' 
+            style={{
+              padding: '6px 12px', fontSize: '0.85rem', borderRadius: '6px',
+              background: 'rgba(15, 23, 42, 0.6)', color: 'var(--text-main)',
+              border: '1px solid var(--border)', outline: 'none'
             }}
           >
             {['All Time', 'Last 10', 'Last 25', 'Last 50'].map(w => <option key={w} value={w}>{w}</option>)}
@@ -54,11 +54,11 @@ const ImpactTrendChart = ({ data, window = 'Last 10', onWindowChange }) => {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-            <XAxis 
-              dataKey="axisLabel" 
-              tick={{ fill: 'var(--text-muted)', fontSize: 10 }} 
-              stroke="var(--border)" 
-              angle={-45} 
+            <XAxis
+              dataKey="axisLabel"
+              tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+              stroke="var(--border)"
+              angle={-45}
               textAnchor="end"
               height={60}
             />
