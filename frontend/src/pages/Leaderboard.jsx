@@ -38,22 +38,38 @@ const Leaderboard = () => {
   }, [selectedSeason]);
 
   // Generate Season Options (2008 to 2025)
-  const seasonOptions = ['All Time', ...Array.from({ length: 18 }, (_, i) => (2025 - i).toString())];
+  // Derive seasons dynamically from data so dropdown stays accurate as dataset grows
+  const seasonOptions = useMemo(() => {
+    const allSeasons = new Set();
+    Object.values(rawData).forEach(list =>
+      list.forEach(p => { if (p.season) allSeasons.add(String(p.season)); })
+    );
+    const sorted = [...allSeasons].sort((a, b) => b.localeCompare(a));
+    return ['All Time', ...sorted];
+  }, [rawData]);
 
   // Active role selects from pre-segmented API data
   const allData = rawData[activeRole] || [];
 
-  // Computed: search filter + sort + top 10 limit
+  // Step 1: Sort the FULL list and assign real global ranks
+  const rankedData = useMemo(() => {
+    const result = [...allData];
+    result.sort((a, b) => parseFloat(b[sortBy] || 0) - parseFloat(a[sortBy] || 0));
+    return result.map((p, i) => ({ ...p, _rank: i + 1 })); // attach real rank
+  }, [allData, sortBy]);
+
+  // Step 2: Apply search filter (preserving real ranks) OR show top 10
   const filteredData = useMemo(() => {
-    let result = [...allData];
     if (searchQuery.trim()) {
-      result = result.filter(p =>
+      // Show all matched players with their actual rank in the full leaderboard
+      return rankedData.filter(p =>
         p.player.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-    result.sort((a, b) => parseFloat(b[sortBy] || 0) - parseFloat(a[sortBy] || 0));
-    return result.slice(0, 10); // Enforce Top 10 limit
-  }, [allData, searchQuery, sortBy]);
+    // Default: top 10 only
+    return rankedData.slice(0, 10);
+  }, [rankedData, searchQuery]);
+
 
   const maxScore = 100;
 
@@ -221,7 +237,7 @@ const Leaderboard = () => {
                   // The impact score is out of 100.
                   const barWidth = Math.min(Math.max(distributionScore, 0), 100).toFixed(1);
 
-                  const barColor = index < 3 ? 'var(--primary)' : 'rgba(56,189,248,0.5)';
+                  const barColor = player._rank <= 3 ? 'var(--primary)' : 'rgba(56,189,248,0.5)';
 
                   return (
                     <tr
@@ -230,8 +246,8 @@ const Leaderboard = () => {
                       onClick={() => navigate(`/player/${encodeURIComponent(player.player)}`)}
                     >
                       <td style={{ textAlign: 'center' }}>
-                        <span className={`rank-circle rank-style-${index < 3 ? index + 1 : 'other'}`}>
-                          {index + 1}
+                        <span className={`rank-circle rank-style-${player._rank <= 3 ? player._rank : 'other'}`}>
+                          {player._rank}
                         </span>
                       </td>
                       <td>
