@@ -143,6 +143,14 @@ def load_data(data_dir):
     # Season is int64 for numeric years (2017, 2018) but object for cross-year
     # seasons like '2007/08', '2020/21'. Casting to str makes it uniform.
     df['season'] = df['season'].astype(str)
+    
+    # Normalize cross-year seasons to single year string representing IPL season
+    season_map = {
+        '2007/08': '2008',
+        '2009/10': '2010',
+        '2020/21': '2020'
+    }
+    df['season'] = df['season'].replace(season_map)
 
     logging.info(
         f"Data ready. Columns: {list(df.columns)}\n"

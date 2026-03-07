@@ -188,7 +188,10 @@ def leaderboards(season: str = "All Time", team: str = "All"):
         lb["Rolling_Impact"] = lb["Rolling_Impact"].fillna(lb["Avg_IM"])
 
         # Minimum innings filter to prevent 1-match wonders from topping the leaderboard
-        min_matches = 30 if season == "All Time" and team == "All" else 3
+        if season == "All Time":
+            min_matches = 30 if team == "All" else 15
+        else:
+            min_matches = 3
         lb = lb[lb["Matches"] >= min_matches]
 
         lb = lb.sort_values("Avg_IM", ascending=False)
