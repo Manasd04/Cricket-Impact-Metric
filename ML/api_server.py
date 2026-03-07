@@ -1,3 +1,6 @@
+"""
+api_server.py - FastAPI backend for serving impact metrics and leaderboard data
+"""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
@@ -9,6 +12,7 @@ from src.rolling_metric import compute_rolling_impact
 
 app = FastAPI(title="Cricket Impact API")
 
+# enable cross-origin requests for the React frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -22,11 +26,14 @@ DATA_DIRECTORY = os.environ.get(
     os.path.join(BASE_DIR, "..", "ipl_male_csv2")
 )
 
-# Global dataframes
+# global state caches
 impact_df = pd.DataFrame()
 rolling_df = pd.DataFrame()
 
 def classify_role(avg_bat_perf, avg_bowl_perf):
+    """
+    Categorizes players based on their average performance contribution.
+    """
     is_bat  = avg_bat_perf  > 0.25
     is_bowl = avg_bowl_perf > 0.25
     if is_bat and is_bowl: return "Allrounder"
@@ -35,11 +42,17 @@ def classify_role(avg_bat_perf, avg_bowl_perf):
     return "Utility"
 
 def clean_data(df):
+    """
+    Strips NaNs for JSON serialization.
+    """
     return df.fillna("").to_dict(orient="records")
 
 def _build_player_team(raw_df):
-    """Build a (match_id, player) -> team lookup from ball-by-ball data."""
+    """
+    Build a (match_id, player) -> team lookup from ball-by-ball data.
+    """
     frames = []
+    # extract teams for strikers
     if 'batting_team' in raw_df.columns and 'striker' in raw_df.columns:
         bat = (
             raw_df[['match_id', 'striker', 'batting_team']]
@@ -47,6 +60,7 @@ def _build_player_team(raw_df):
             .drop_duplicates(['match_id', 'player'])
         )
         frames.append(bat)
+    # extract teams for bowlers
     if 'bowling_team' in raw_df.columns and 'bowler' in raw_df.columns:
         bowl = (
             raw_df[['match_id', 'bowler', 'bowling_team']]
@@ -63,14 +77,19 @@ def _build_player_team(raw_df):
     )
 
 @app.on_event("startup")
-def load_data():
+def startup_load():
+    """
+    Initializes the in-memory data cache when the server starts.
+    """
     global impact_df, rolling_df
     print(f"Loading data from {DATA_DIRECTORY}...")
     try:
+        # run the full calculation pipeline
         metric = CricketImpactMetric(DATA_DIRECTORY)
         impact_df, rolling_df = metric.run_pipeline()
 
         # ── Role classification ────────────────────────────────────────────
+        # assign primary roles based on performance distribution
         player_role_map = (
             impact_df.groupby("player")
             .agg(avg_bat=("perf_bat","mean"), avg_bowl=("perf_bowl","mean"))
@@ -81,7 +100,7 @@ def load_data():
         rolling_df = rolling_df.merge(player_role_map.reset_index(), on="player", how="left")
 
         # ── Team extraction ───────────────────────────────────────────────
-        # Re-read raw data (CSVs are cached by OS — fast second read)
+        # associate players with their IPL franchises
         raw_df = _load_raw(DATA_DIRECTORY)
         player_team = _build_player_team(raw_df)
 
@@ -91,7 +110,7 @@ def load_data():
             )
             impact_df['team'] = impact_df['team'].fillna('Unknown')
 
-            # Most frequent team per player → attach to rolling_df
+            # assign the most frequent team to the rolling form view
             team_mode = (
                 impact_df.groupby('player')['team']
                 .agg(lambda x: x.mode().iloc[0] if not x.empty else 'Unknown')
@@ -108,10 +127,16 @@ def load_data():
 
 @app.get("/api/health")
 def health():
+    """
+    Basic health check for the API.
+    """
     return {"status": "ok", "records": len(impact_df)}
 
 @app.get("/api/tournament")
 def tournament_data(season: str = "All Time", role: str = "All"):
+    """
+    Returns global tournament stats and top players for a given season or role.
+    """
     df = impact_df.copy()
     if season != "All Time" and not df.empty:
         df = df[df["season"].astype(str) == season]
@@ -121,8 +146,8 @@ def tournament_data(season: str = "All Time", role: str = "All"):
     if df.empty:
         return {"kpis": {}, "top_rolling": [], "top_matches": [], "impact_distribution": []}
 
+    # re-calculate rolling impact for the filtered subset
     roll_df = compute_rolling_impact(df)
-    # Re-attach role to roll_df for frontend display
     if "role" in df.columns:
         player_roles = df.groupby("player")["role"].first().reset_index()
         roll_df = roll_df.merge(player_roles, on="player", how="left")
@@ -152,24 +177,25 @@ def tournament_data(season: str = "All Time", role: str = "All"):
 
 @app.get("/api/leaderboard")
 def leaderboards(season: str = "All Time", team: str = "All"):
+    """
+    Returns segmented leaderboards (Batters, Bowlers, Allrounders).
+    """
     df = impact_df.copy()
     if df.empty: return {}
 
     if season != "All Time":
         df = df[df["season"].astype(str) == season]
 
-    # Team filter
     if team != "All" and 'team' in df.columns:
         df = df[df["team"] == team]
 
-    # Compute rolling impact dynamically based on the filtered matches
     roll_df_computed = compute_rolling_impact(df)
 
     def get_role_lb(r_name):
         df_r = df if r_name == "All" else df[df["role"] == r_name]
         if df_r.empty: return []
 
-        # Sort chronologically so `last` extracts the actual most recent match
+        # ensure chronological sort for accurate 'recent' stats
         if "start_date" in df_r.columns:
             df_r = df_r.copy()
             df_r["_dt"] = pd.to_datetime(df_r["start_date"], errors="coerce")
@@ -191,7 +217,7 @@ def leaderboards(season: str = "All Time", team: str = "All"):
         lb = lb.merge(roll_df_computed[["player", "Rolling_Impact"]], on="player", how="left")
         lb["Rolling_Impact"] = lb["Rolling_Impact"].fillna(lb["Avg_IM"])
 
-        # Minimum innings filter to prevent 1-match wonders from topping the leaderboard
+        # filter out outliers: minimum match requirements
         if season == "All Time":
             min_matches = 30 if team == "All" else 15
         else:
@@ -210,13 +236,18 @@ def leaderboards(season: str = "All Time", team: str = "All"):
 
 @app.get("/api/players")
 def all_players():
+    """
+    Returns alphabetical list of all players in the dataset.
+    """
     if impact_df.empty: return {"players": []}
     players = sorted(impact_df["player"].dropna().unique())
     return {"players": players}
 
 @app.get("/api/teams")
 def all_teams():
-    """Returns all unique IPL team names found in the dataset."""
+    """
+    Returns unique IPL franchise names.
+    """
     if impact_df.empty or 'team' not in impact_df.columns:
         return {"teams": []}
     teams = sorted([
@@ -227,6 +258,9 @@ def all_teams():
 
 @app.get("/api/player/{player_name}")
 def player_profile(player_name: str, window: str = "All Time", season: str = "All"):
+    """
+    Returns detailed match-by-match metrics for a single player.
+    """
     if impact_df.empty: return {"error": "No data"}
     
     player_df = impact_df[impact_df["player"] == player_name].copy()
@@ -236,14 +270,13 @@ def player_profile(player_name: str, window: str = "All Time", season: str = "Al
         player_df["start_date_dt"] = pd.to_datetime(player_df["start_date"], errors="coerce")
         player_df = player_df.sort_values("start_date_dt")
     
-    # Get all seasons the player played in (before filtering) so the frontend can populate the dropdown
     p_seasons = sorted(player_df["season"].astype(str).unique(), reverse=True)
     
-    # ── Step 1: Filter by season FIRST ─────────────────────────────────
+    # apply categorical filters
     if season != "All" and season in p_seasons:
         player_df = player_df[player_df["season"].astype(str) == season]
     
-    # ── Step 2: Then slice the last N innings of that season ────────────
+    # slice by recency window
     if window == "Last 10": player_df = player_df.tail(10)
     elif window == "Last 25": player_df = player_df.tail(25)
     elif window == "Last 50": player_df = player_df.tail(50)
@@ -280,4 +313,6 @@ def player_profile(player_name: str, window: str = "All Time", season: str = "Al
 
 if __name__ == "__main__":
     import uvicorn
+    # run uvicorn server on port 8000
     uvicorn.run("api_server:app", host="127.0.0.1", port=8000, reload=True)
+

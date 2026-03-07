@@ -1,3 +1,6 @@
+"""
+context_situation.py - evaluates match pressure and tournament situation
+"""
 import logging
 import numpy as np
 import pandas as pd
@@ -5,24 +8,11 @@ import pandas as pd
 
 def compute_context_and_situation(df):
     """
-    Calculates per-match Context & Situation multipliers and per-player
-    pressure scores used in the impact model.
-
-    Edge Cases Handled:
-    1. Empty DataFrame input — returns minimal valid structure immediately.
-    2. Missing pressure-related columns — filled with safe defaults.
-    3. Division-by-zero in pressure_index — clipped to [0, 10].
-    4. Empty match groups after groupby — handled via fillna chain.
-    5. Economy-rate division by zero — uses np.maximum(..., 0.1).
-    6. econ_min == econ_max (all same economy) — max denominator guard.
-    7. match_number missing — match_importance defaults to 1.0.
-    8. Missing season/venue/team columns — filled with 'Unknown'.
-    9. All NaN in opponent_strength — filled with 1.0 (neutral).
-    10. Context/Situation always clipped to defined range before returning.
+    Calculates per-match Context & Situation multipliers and per-player pressure scores.
     """
     logging.info("Evaluating Match Context & Situation constraints...")
 
-    # ── Guard: empty input ─────────────────────────────────────────────────────
+    # guard for empty input
     if df.empty:
         logging.warning("compute_context_and_situation received empty DataFrame.")
         return pd.DataFrame(columns=[
@@ -32,8 +22,11 @@ def compute_context_and_situation(df):
 
     df = df.copy()
 
-    # ── 1. PRESSURE INDEX ─────────────────────────────────────────────────────
-    # FIX 2: ensure all pressure columns exist with safe defaults before use
+    # ==========================
+    #  1. PRESSURE INDEX
+    # ==========================
+
+    # ensure all req columns exist with defaults before formula
     for col, default in [
         ('current_rr',       0.1),
         ('required_rr',      0.1),
@@ -46,7 +39,10 @@ def compute_context_and_situation(df):
         df[col] = pd.to_numeric(df[col], errors='coerce').fillna(default)
         df[col] = np.maximum(df[col], default if col != 'wickets_remaining' else 1.0)
 
-    # FIX 3: clip pressure_index to [0, 10] to prevent end-of-innings explosion
+    # pressure grows when:
+    # - required rate is higher than current rate
+    # - fewer wickets remain
+    # - fewer overs remain
     df["pressure_index"] = np.clip(
         (df["required_rr"] / df["current_rr"])
         * (10 / df["wickets_remaining"])
@@ -54,7 +50,9 @@ def compute_context_and_situation(df):
         0, 10,
     )
 
-    # ── 2. PER MATCH PRESSURE ─────────────────────────────────────────────────
+    # ==========================
+    #  2. PER MATCH PRESSURE
+    # ==========================
     match_ctx = (
         df.groupby("match_id", as_index=False)
         .agg(
@@ -63,13 +61,16 @@ def compute_context_and_situation(df):
             avg_wickets_rem=("wickets_remaining", "mean")
         )
     )
-    # FIX 4: guard NaN avg_pressure (all-NaN group)
+    # clean up match-level pressure stats
     match_ctx["avg_pressure"] = match_ctx["avg_pressure"].fillna(0.0)
     match_ctx["avg_req_rr"] = match_ctx["avg_req_rr"].fillna(0.0)
     match_ctx["avg_wickets_rem"] = match_ctx["avg_wickets_rem"].fillna(10.0)
     match_ctx["WicketsLost"] = 10 - match_ctx["avg_wickets_rem"]
 
-    # ── 3. OPPOSITION STRENGTH ────────────────────────────────────────────────
+    # ==========================
+    #  3. OPPOSITION STRENGTH
+    # ==========================
+    # dynamic strength based on how hard the opponent's bowling is to score against
     if "total_runs" in df.columns and "bowler" in df.columns:
         bowling_stats = (
             df.groupby(["match_id", "bowler"])
@@ -80,7 +81,6 @@ def compute_context_and_situation(df):
             .reset_index()
         )
         bowling_stats["overs"] = bowling_stats["balls"] / 6
-        # FIX 5: guard overs=0
         bowling_stats["economy"] = bowling_stats["runs_conceded"] / np.maximum(
             bowling_stats["overs"], 0.1
         )
@@ -95,7 +95,7 @@ def compute_context_and_situation(df):
         econ_min = match_bowling_strength["avg_bowling_economy"].min()
         econ_max = match_bowling_strength["avg_bowling_economy"].max()
 
-        # FIX 6: guard when all economies are identical (econ_max == econ_min)
+        # normalize economy into [0.85, 1.15] strength range
         denom = max(econ_max - econ_min, 0.1)
         match_bowling_strength["opponent_strength"] = np.clip(
             0.9 + 0.2 * (econ_max - match_bowling_strength["avg_bowling_economy"]) / denom,
@@ -109,28 +109,33 @@ def compute_context_and_situation(df):
     else:
         match_ctx["opponent_strength"] = 1.0
 
-    # FIX 9: fill NaN opponent_strength with neutral 1.0
     match_ctx["opponent_strength"] = match_ctx["opponent_strength"].fillna(1.0)
 
-    # ── 4. CONTEXT ────────────────────────────────────────────────────────────
+    # ==========================
+    #  4. CONTEXT
+    # ==========================
+    # match difficulty = (avg_pressure + baseline) * strength of opposition
     match_ctx["Context"] = np.clip(
         (match_ctx["avg_pressure"] / 8.0 + 0.8) * match_ctx["opponent_strength"],
         0.8, 1.4,
     )
     
-    # NEW: BatContext and BowlContext
+    # BatContext: player pressure difficulty for batting
+    # boosted by high req run rate, wickets lost, and general match pressure
     match_ctx["BatContext"] = 1 + 0.20 * (match_ctx["avg_req_rr"] / 10) + 0.10 * (match_ctx["WicketsLost"] / 10) + 0.15 * (match_ctx["avg_pressure"] / 10)
     match_ctx["BatContext"] = np.clip(match_ctx["BatContext"], 0.9, 1.5)
     
+    # BowlContext: player pressure difficulty for bowling
+    # focus on defending required rate and overall situational pressure
     match_ctx["BowlContext"] = 1 + 0.15 * (match_ctx["avg_req_rr"] / 10) + 0.20 * (match_ctx["avg_pressure"] / 10)
     match_ctx["BowlContext"] = np.clip(match_ctx["BowlContext"], 0.9, 1.5)
 
-    # ── 5. SITUATION ──────────────────────────────────────────────────────────
-    # (Moved to the end after match_number metadata is available)
-
-    # ── 6. PER PLAYER PRESSURE ────────────────────────────────────────────────
+    # ==========================
+    #  6. PER PLAYER PRESSURE
+    # ==========================
     player_pressure_frames = []
 
+    # track mean pressure experienced during a batsman's stay
     if "striker" in df.columns:
         player_pressure_frames.append(
             df.groupby(["match_id", "striker"])["pressure_index"]
@@ -138,6 +143,7 @@ def compute_context_and_situation(df):
             .rename(columns={"striker": "player", "pressure_index": "player_pressure"})
         )
 
+    # track mean pressure handled by a bowler during their spell
     if "bowler" in df.columns:
         player_pressure_frames.append(
             df.groupby(["match_id", "bowler"])["pressure_index"]
@@ -145,6 +151,7 @@ def compute_context_and_situation(df):
             .rename(columns={"bowler": "player", "pressure_index": "player_pressure"})
         )
 
+    # mix and merge to get one entry per (match, player)
     if player_pressure_frames:
         player_pressure_all = (
             pd.concat(player_pressure_frames)
@@ -160,14 +167,16 @@ def compute_context_and_situation(df):
         match_ctx["avg_pressure"]
     )
 
-    # ── 7. MATCH METADATA ─────────────────────────────────────────────────────
+    # ==========================
+    #  7. MATCH METADATA
+    # ==========================
+    # adds human-readable labels and season-specific match numbering
     meta_cols = ['match_id', 'season', 'start_date', 'venue', 'batting_team', 'bowling_team']
     available_meta = [c for c in meta_cols if c in df.columns]
 
     if available_meta:
         meta = df.drop_duplicates("match_id")[available_meta].copy()
 
-        # FIX 8: fill missing metadata columns
         for col in ['season', 'start_date', 'venue', 'batting_team', 'bowling_team']:
             if col not in meta.columns:
                 meta[col] = 'Unknown'
@@ -194,30 +203,33 @@ def compute_context_and_situation(df):
         keep_cols = [c for c in keep_cols if c in meta.columns]
         match_ctx = pd.merge(match_ctx, meta[keep_cols], on="match_id", how="left")
 
-    # ── 8. MATCH IMPORTANCE & SITUATION (Dynamic stage detection) ─────────────
-    # IPL seasons vary in match count, so stage is inferred from the last matches
+    # ==========================
+    #  8. MATCH IMPORTANCE & SITUATION
+    # ==========================
+    # dynamic importance scaling (Finals > league games) based on end-of-season rank
     if 'match_number' in match_ctx.columns and 'season' in match_ctx.columns:
         total_matches_per_season = match_ctx.groupby("season")["match_number"].transform("max")
         stage_rank = total_matches_per_season - match_ctx["match_number"]
         
         conditions = [
-            stage_rank == 0,  # Final
-            stage_rank == 1,  # Qualifier 2 / Semi Final
-            stage_rank == 2,  # Eliminator
-            stage_rank == 3   # Qualifier 1
+            stage_rank == 0,  # match_number == total_matches
+            stage_rank == 1,  # match_number == total_matches - 1
+            stage_rank == 2,  # match_number == total_matches - 2
+            stage_rank == 3   # match_number == total_matches - 3
         ]
-        choices = [1.35, 1.25, 1.15, 1.20]
+        choices = [1.35, 1.25, 1.15, 1.20] # Final, Q2, Eliminator, Q1
         match_ctx['match_importance'] = np.select(conditions, choices, default=1.0)
     else:
         match_ctx['match_importance'] = 1.0
 
+    # Situation represents ONLY tournament importance (group stage vs playoffs vs final)
     match_ctx["Situation"] = np.clip(
         match_ctx["match_importance"],
         1.0,
         1.35
     )
 
-    # Final clipping
+    # final global clipping to keep scales controlled
     match_ctx["Context"]   = np.clip(match_ctx["Context"],   0.8, 1.4)
     match_ctx["Situation"] = np.clip(match_ctx["Situation"], 1.0, 1.35)
 

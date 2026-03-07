@@ -1,8 +1,11 @@
+"""
+visualization.py - generates charts and visual analytics for the impact model
+"""
 import logging
 import os
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use('Agg') # use non-interactive background for server stability
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import seaborn as sns
@@ -10,17 +13,13 @@ import seaborn as sns
 
 def generate_visualizations(impact_df, rolling_df):
     """
-    Generates and saves four visualizations to the visualizations/ directory:
-
-    1. impact_distribution.png     – histogram of all per-match Impact Scores
-    2. top_players_leaderboard.png – horizontal bar chart of top-10 rolling IM
-    3. impact_trend_<player>.png   – line chart of last 10 match impacts (top 5 players)
-    4. impact_meter.png            – semicircular gauge meter for the #1 player
+    Generates and saves visual reports to the visualizations/ directory.
     """
     logging.info("Generating Visualizations...")
     os.makedirs("visualizations", exist_ok=True)
 
-    # ── 1. Impact Score Distribution ──────────────────────────────────
+    # 1. IMPACT SCORE DISTRIBUTION
+    # visualizes the spread of all per-match impacts across the dataset
     plt.figure(figsize=(10, 6))
     sns.histplot(impact_df['Impact_Score'], bins=40, kde=True, color='mediumpurple')
     plt.axvline(50, color='crimson', linestyle='dashed', linewidth=2, label='Neutral baseline (50)')
@@ -32,14 +31,14 @@ def generate_visualizations(impact_df, rolling_df):
     plt.savefig("visualizations/impact_distribution.png", dpi=150)
     plt.close()
 
-    # ── 2. Top-10 Player Leaderboard ──────────────────────────────────
+    # 2. TOP-10 PLAYER LEADERBOARD
+    # ranks players by their recency-weighted rolling impact score
     top_players = rolling_df.head(10).copy()
     colors = ['gold' if i == 0 else 'steelblue' for i in range(len(top_players))]
     plt.figure(figsize=(12, 6))
     bars = plt.barh(top_players['player'][::-1], top_players['Rolling_Impact'][::-1], color=colors[::-1])
     plt.axvline(50, color='crimson', linestyle='dashed', linewidth=1.5, label='Neutral (50)')
-    plt.title('Top 10 Players — Recency-Weighted Rolling Impact (Last 10 Innings)',
-              fontsize=13, fontweight='bold')
+    plt.title('Top 10 Players — Rolling Impact (Last 10 Innings)', fontsize=13, fontweight='bold')
     plt.xlabel('Rolling Impact Score (0-100)')
     plt.ylabel('Player')
     for bar, val in zip(bars, top_players['Rolling_Impact'][::-1]):
@@ -50,7 +49,8 @@ def generate_visualizations(impact_df, rolling_df):
     plt.savefig("visualizations/top_players_leaderboard.png", dpi=150)
     plt.close()
 
-    # ── 3. Per-Player Impact Trend (top 5) ────────────────────────────
+    # 3. INDIVIDUAL PLAYER TRENDS (Top 5 only)
+    # line charts showing performance volatility for the top-ranked players
     top5 = rolling_df.head(5)['player'].tolist()
     df_sorted = impact_df.sort_values(['player', 'match_id'])
     for player in top5:
@@ -64,7 +64,7 @@ def generate_visualizations(impact_df, rolling_df):
                          50, alpha=0.15, color='steelblue')
         plt.axhline(50, color='crimson', linestyle='dashed', linewidth=1.5, label='Neutral (50)')
         plt.ylim(0, 100)
-        plt.title(f'Impact Trend — {player} (Last 10 Innings)', fontsize=12, fontweight='bold')
+        plt.title(f'Performance Trend — {player}', fontsize=12, fontweight='bold')
         plt.xlabel('Match (oldest → newest)')
         plt.ylabel('Impact Score (0-100)')
         plt.legend()
@@ -73,7 +73,8 @@ def generate_visualizations(impact_df, rolling_df):
         plt.savefig(f"visualizations/impact_trend_{safe_name}.png", dpi=150)
         plt.close()
 
-    # ── 4. Impact Meter Gauge (top player) ────────────────────────────
+    # 4. IMPACT METER GAUGE
+    # premium gauge chart for the #1 ranked player
     top_player = rolling_df.iloc[0]
     score = float(top_player['Rolling_Impact'])
     _draw_gauge(score, top_player['player'])
@@ -84,12 +85,15 @@ def generate_visualizations(impact_df, rolling_df):
 
 
 def _draw_gauge(score: float, player_name: str):
-    """Draws a semicircular impact meter for a given score (0-100)."""
+    """
+    Draws a semicircular impact meter for a given score (0-100).
+    """
     fig, ax = plt.subplots(figsize=(7, 4), subplot_kw=dict(aspect='equal'))
     ax.set_xlim(-1.3, 1.3)
     ax.set_ylim(-0.3, 1.3)
     ax.axis('off')
 
+    # gauge zones by impact intensity
     zones = [
         (0,  30,  'crimson',        'Low'),
         (30, 50,  'darkorange',     'Below Par'),
@@ -104,7 +108,7 @@ def _draw_gauge(score: float, player_name: str):
                            color=color, lw=20, zorder=2)
         ax.add_patch(arc)
 
-    # Needle
+    # indicator needle points to the player's score
     angle_rad = np.radians(180 - score * 1.8)
     nx, ny = 0.85 * np.cos(angle_rad), 0.85 * np.sin(angle_rad)
     ax.annotate('', xy=(nx, ny), xytext=(0, 0),
