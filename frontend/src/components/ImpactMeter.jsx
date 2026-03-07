@@ -1,6 +1,6 @@
 import React from 'react';
 import GaugeChart from 'react-gauge-chart';
-import { Activity, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Activity, TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
 
 const ImpactMeter = ({ score, previousScore }) => {
   const numScore = parseFloat(score) || 0;
@@ -23,13 +23,20 @@ const ImpactMeter = ({ score, previousScore }) => {
   const TrendIcon = diff > 0 ? TrendingUp : diff < 0 ? TrendingDown : Minus;
   const trendColor = diff > 0 ? 'var(--accent-green)' : diff < 0 ? 'var(--accent-red)' : 'var(--text-muted)';
 
+  const tooltipText = "Impact Score Formula\n\nImpact =\n((Batting Performance × Batting Context)\n+\n(Bowling Performance × Bowling Context))\n× Pressure Factor\n\nThe result is then normalized to a 0–100 scale using logistic scaling.";
+
   return (
     <div className="glass-panel animate-fade-in delay-200" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '30px', height: '100%' }}>
       <div style={{ alignSelf: 'stretch', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-        <h3 className="section-header" style={{ marginBottom: 0 }}>
-          <Activity size={22} style={{ color: 'var(--primary)' }} />
-          Impact Score
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h3 className="section-header" style={{ marginBottom: 0 }}>
+            <Activity size={22} style={{ color: 'var(--primary)' }} />
+            Impact Score
+          </h3>
+          <div title={tooltipText} style={{ cursor: 'help', color: 'var(--text-muted)' }}>
+            <Info size={16} />
+          </div>
+        </div>
         {/* Tier Badge */}
         <span style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 800, letterSpacing: '1px', background: `rgba(${tier.color === '#fbbf24' ? '251,191,36' : tier.color === '#10b981' ? '16,185,129' : tier.color === '#38bdf8' ? '56,189,248' : '248,113,113'}, 0.15)`, color: tier.color, border: `1px solid ${tier.color}` }}>
           {tier.label}

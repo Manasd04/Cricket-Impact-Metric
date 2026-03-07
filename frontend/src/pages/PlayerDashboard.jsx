@@ -10,8 +10,6 @@ import InningsTable from '../components/InningsTable';
 import { getPlayerImpact } from '../services/api';
 import { ArrowLeft, RefreshCw, Award } from 'lucide-react';
 
-
-
 const PlayerDashboard = () => {
   const { playerName } = useParams();
   const navigate = useNavigate();
@@ -48,6 +46,9 @@ const PlayerDashboard = () => {
   const avgBat = parseFloat(summary['Avg Bat Perf'] || 0).toFixed(2);
   const avgContext = parseFloat(summary['Avg Context'] || 1.0).toFixed(2);
   const avgSituation = parseFloat(summary['Avg Situation'] || 1.0).toFixed(2);
+
+  const avgBatImpact = (data?.trend || []).reduce((sum, match) => sum + ((match.perf_bat || 0) * (match.BatContext || 1.0)), 0) / Math.max(1, data?.trend?.length || 1);
+  const avgBowlImpact = (data?.trend || []).reduce((sum, match) => sum + ((match.perf_bowl || 0) * (match.BowlContext || 1.0)), 0) / Math.max(1, data?.trend?.length || 1);
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -127,7 +128,8 @@ const PlayerDashboard = () => {
               />
               <ImpactMeter score={parseFloat(rollingScore)} />
               <StatsBreakdown
-                performance={avgBat}
+                battingImpact={avgBatImpact}
+                bowlingImpact={avgBowlImpact}
                 context={avgContext}
                 pressure={avgSituation}
               />

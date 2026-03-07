@@ -57,10 +57,17 @@ def compute_context_and_situation(df):
     # ── 2. PER MATCH PRESSURE ─────────────────────────────────────────────────
     match_ctx = (
         df.groupby("match_id", as_index=False)
-        .agg(avg_pressure=("pressure_index", "mean"))
+        .agg(
+            avg_pressure=("pressure_index", "mean"),
+            avg_req_rr=("required_rr", "mean"),
+            avg_wickets_rem=("wickets_remaining", "mean")
+        )
     )
     # FIX 4: guard NaN avg_pressure (all-NaN group)
     match_ctx["avg_pressure"] = match_ctx["avg_pressure"].fillna(0.0)
+    match_ctx["avg_req_rr"] = match_ctx["avg_req_rr"].fillna(0.0)
+    match_ctx["avg_wickets_rem"] = match_ctx["avg_wickets_rem"].fillna(10.0)
+    match_ctx["WicketsLost"] = 10 - match_ctx["avg_wickets_rem"]
 
     # ── 3. OPPOSITION STRENGTH ────────────────────────────────────────────────
     if "total_runs" in df.columns and "bowler" in df.columns:
@@ -110,6 +117,13 @@ def compute_context_and_situation(df):
         (match_ctx["avg_pressure"] / 8.0 + 0.8) * match_ctx["opponent_strength"],
         0.8, 1.4,
     )
+    
+    # NEW: BatContext and BowlContext
+    match_ctx["BatContext"] = 1 + 0.20 * (match_ctx["avg_req_rr"] / 10) + 0.10 * (match_ctx["WicketsLost"] / 10) + 0.15 * (match_ctx["avg_pressure"] / 10)
+    match_ctx["BatContext"] = np.clip(match_ctx["BatContext"], 0.9, 1.5)
+    
+    match_ctx["BowlContext"] = 1 + 0.15 * (match_ctx["avg_req_rr"] / 10) + 0.20 * (match_ctx["avg_pressure"] / 10)
+    match_ctx["BowlContext"] = np.clip(match_ctx["BowlContext"], 0.9, 1.5)
 
     # ── 5. SITUATION (match importance × pressure tier) ───────────────────────
     # FIX 7: match_importance from match_number (later = higher stakes)

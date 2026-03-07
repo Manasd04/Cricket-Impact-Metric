@@ -1,28 +1,36 @@
 import React from 'react';
 import { Target, Zap, Shield, TrendingUp } from 'lucide-react';
 
-const StatsBreakdown = ({ performance, context, pressure }) => {
-  // ML clipping ranges (from impact_model.py):
-  //   Performance (perf_bat + perf_bowl): raw scores, typical max ~10
-  //   Context:   np.clip(Context,   0.8, 1.4)  → range 0.8–1.4
-  //   Situation: np.clip(Situation, 1.0, 1.5)  → range 1.0–1.5
-  const contextPct = Math.min(100, (((parseFloat(context) - 0.8) / (1.4 - 0.8)) * 100));
-  const pressurePct = Math.min(100, (((parseFloat(pressure) - 1.0) / (1.5 - 1.0)) * 100));
-  const perfPct = Math.min(100, ((parseFloat(performance) / 10) * 100));
+const StatsBreakdown = ({ battingImpact, bowlingImpact, context, pressure }) => {
+  // ML clipping ranges:
+  //   Performance max ~10, Context: 0.9–1.5, Situation: 1.0–1.5
+  // We approximate Batting & Bowling impact max to 2.5 for visualization 
+  const contextPct = Math.max(0, Math.min(100, (((parseFloat(context) - 0.9) / (1.5 - 0.9)) * 100)));
+  const pressurePct = Math.max(0, Math.min(100, (((parseFloat(pressure) - 1.0) / (1.5 - 1.0)) * 100)));
+  const batPct = Math.max(0, Math.min(100, ((parseFloat(battingImpact) / 2.5) * 100)));
+  const bowlPct = Math.max(0, Math.min(100, ((parseFloat(bowlingImpact) / 2.5) * 100)));
 
   const stats = [
     {
-      icon: <Shield color="#38bdf8" size={22} />,
-      label: 'Performance Impact',
-      desc: 'Batting & Bowling output (0–10)',
-      value: parseFloat(performance),
-      barPct: perfPct,
-      color: '56, 189, 248',
+      icon: <Shield color="#0ea5e9" size={22} />,
+      label: 'Batting Impact',
+      desc: 'Batting contribution adjusted for match context',
+      value: parseFloat(battingImpact),
+      barPct: batPct,
+      color: '14, 165, 233', // cyan/blue
+    },
+    {
+      icon: <Shield color="#8b5cf6" size={22} />,
+      label: 'Bowling Impact',
+      desc: 'Bowling contribution adjusted for match context',
+      value: parseFloat(bowlingImpact),
+      barPct: bowlPct,
+      color: '139, 92, 246', // violet/purple
     },
     {
       icon: <Target color="#10b981" size={22} />,
-      label: 'Match Context',
-      desc: 'Situation & phase modifier (0.8–1.4)',
+      label: 'Context Multiplier',
+      desc: 'Match difficulty and opposition strength modifier',
       value: parseFloat(context),
       barPct: contextPct,
       color: '16, 185, 129',
@@ -30,7 +38,7 @@ const StatsBreakdown = ({ performance, context, pressure }) => {
     {
       icon: <Zap color="#f59e0b" size={22} />,
       label: 'Pressure Factor',
-      desc: 'Under-fire multiplier (1.0–1.5)',
+      desc: 'High-pressure match multiplier (1.0–1.5)',
       value: parseFloat(pressure),
       barPct: pressurePct,
       color: '245, 158, 11',

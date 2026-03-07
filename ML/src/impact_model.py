@@ -61,12 +61,13 @@ def calculate_raw_and_final_impact(bat_df, bowl_df, match_context):
 
     if match_context is None or match_context.empty:
         # FIX 2: no context data → neutral defaults
-        logging.warning("match_context is empty. Using neutral Context=1.0, Situation=1.0.")
-        total_df['Context']   = 1.0
+        logging.warning("match_context is empty. Using neutral Contexts, Situation=1.0.")
+        total_df['BatContext'] = 1.0
+        total_df['BowlContext'] = 1.0
         total_df['Situation'] = 1.0
     else:
         match_level_cols = [
-            'match_id', 'avg_pressure', 'Context', 'Situation',
+            'match_id', 'avg_pressure', 'Context', 'BatContext', 'BowlContext', 'Situation',
             'opponent_strength', 'match_importance',
             'season', 'start_date', 'venue',
             'batting_first', 'bowling_first',
@@ -87,6 +88,16 @@ def calculate_raw_and_final_impact(bat_df, bowl_df, match_context):
 
     # ── Step 4: NaN guards on Context and Situation ───────────────────────────
     # FIX 4 & 5: ensure multipliers always exist and are not NaN
+    if 'BatContext' not in total_df.columns:
+        total_df['BatContext'] = 1.0
+    else:
+        total_df['BatContext'] = total_df['BatContext'].fillna(1.0)
+
+    if 'BowlContext' not in total_df.columns:
+        total_df['BowlContext'] = 1.0
+    else:
+        total_df['BowlContext'] = total_df['BowlContext'].fillna(1.0)
+
     if 'Context' not in total_df.columns:
         total_df['Context'] = 1.0
     else:
@@ -98,15 +109,16 @@ def calculate_raw_and_final_impact(bat_df, bowl_df, match_context):
         total_df['Situation'] = total_df['Situation'].fillna(1.0)
 
     # Clip to valid ranges before multiplication
-    total_df['Context']   = np.clip(total_df['Context'],   0.8, 1.4)
-    total_df['Situation'] = np.clip(total_df['Situation'], 1.0, 1.5)
+    total_df['BatContext']  = np.clip(total_df['BatContext'],  0.9, 1.5)
+    total_df['BowlContext'] = np.clip(total_df['BowlContext'], 0.9, 1.5)
+    total_df['Context']     = np.clip(total_df['Context'],     0.8, 1.4)
+    total_df['Situation']   = np.clip(total_df['Situation'],   1.0, 1.5)
 
     # ── Step 5: RawImpact ─────────────────────────────────────────────────────
     total_df['RawImpact'] = (
-        total_df['Total_Performance']
-        * total_df['Context']
-        * total_df['Situation']
-    )
+        (total_df['perf_bat'] * total_df['BatContext'])
+        + (total_df['perf_bowl'] * total_df['BowlContext'])
+    ) * total_df['Situation']
     # FIX 6: guard any remaining NaN in RawImpact
     total_df['RawImpact'] = total_df['RawImpact'].fillna(0)
 

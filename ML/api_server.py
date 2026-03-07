@@ -132,7 +132,7 @@ def leaderboards(season: str = "All Time"):
         min_matches = 30 if season == "All Time" else 3
         lb = lb[lb["Matches"] >= min_matches]
         
-        lb = lb.sort_values("Avg_IM", ascending=False).head(50)
+        lb = lb.sort_values("Avg_IM", ascending=False)
         return clean_data(lb)
 
     return {
@@ -194,7 +194,7 @@ def player_profile(player_name: str, window: str = "All Time", season: str = "Al
             "Elite Innings": int((player_df["Impact_Score"] >= 85).sum()),
             "Avg Bat Perf": round(float(player_df["perf_bat"].mean()), 2),
             "Avg Bowl Perf": round(float(player_df["perf_bowl"].mean()), 2),
-            "Avg Context": round(float(player_df.get("Context", pd.Series([1.0])).mean()), 2),
+            "Avg Context": round(float(player_df[["BatContext", "BowlContext"]].mean(axis=1).mean()), 2),
             "Avg Situation": round(float(player_df.get("Situation", pd.Series([1.0])).mean()), 2)
         },
         "trend": clean_data(player_df),
