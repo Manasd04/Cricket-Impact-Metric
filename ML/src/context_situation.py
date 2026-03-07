@@ -125,25 +125,8 @@ def compute_context_and_situation(df):
     match_ctx["BowlContext"] = 1 + 0.15 * (match_ctx["avg_req_rr"] / 10) + 0.20 * (match_ctx["avg_pressure"] / 10)
     match_ctx["BowlContext"] = np.clip(match_ctx["BowlContext"], 0.9, 1.5)
 
-    # ── 5. SITUATION (match importance × pressure tier) ───────────────────────
-    # FIX 7: match_importance from match_number (later = higher stakes)
-    # IPL: ~50 league games, then Eliminator/QF/SF/Final
-    if 'match_number' in match_ctx.columns:
-        match_ctx['match_importance'] = np.where(
-            match_ctx['match_number'] > 56, 1.3,
-            np.where(match_ctx['match_number'] > 50, 1.2, 1.0)
-        )
-    else:
-        match_ctx['match_importance'] = 1.0
-
-    match_ctx["Situation"] = np.clip(
-        match_ctx['match_importance'] * (match_ctx["avg_pressure"] / 5.0),
-        1.0, 1.5,
-    )
-
-    # FIX 10: final clip on Context and Situation
-    match_ctx["Context"]   = np.clip(match_ctx["Context"],   0.8, 1.4)
-    match_ctx["Situation"] = np.clip(match_ctx["Situation"], 1.0, 1.5)
+    # ── 5. SITUATION ──────────────────────────────────────────────────────────
+    # (Moved to the end after match_number metadata is available)
 
     # ── 6. PER PLAYER PRESSURE ────────────────────────────────────────────────
     player_pressure_frames = []
@@ -210,6 +193,33 @@ def compute_context_and_situation(df):
                      'batting_first', 'bowling_first', 'match_label', 'match_number']
         keep_cols = [c for c in keep_cols if c in meta.columns]
         match_ctx = pd.merge(match_ctx, meta[keep_cols], on="match_id", how="left")
+
+    # ── 8. MATCH IMPORTANCE & SITUATION (Dynamic stage detection) ─────────────
+    # IPL seasons vary in match count, so stage is inferred from the last matches
+    if 'match_number' in match_ctx.columns and 'season' in match_ctx.columns:
+        total_matches_per_season = match_ctx.groupby("season")["match_number"].transform("max")
+        stage_rank = total_matches_per_season - match_ctx["match_number"]
+        
+        conditions = [
+            stage_rank == 0,  # Final
+            stage_rank == 1,  # Qualifier 2 / Semi Final
+            stage_rank == 2,  # Eliminator
+            stage_rank == 3   # Qualifier 1
+        ]
+        choices = [1.35, 1.25, 1.15, 1.20]
+        match_ctx['match_importance'] = np.select(conditions, choices, default=1.0)
+    else:
+        match_ctx['match_importance'] = 1.0
+
+    match_ctx["Situation"] = np.clip(
+        match_ctx["match_importance"],
+        1.0,
+        1.35
+    )
+
+    # Final clipping
+    match_ctx["Context"]   = np.clip(match_ctx["Context"],   0.8, 1.4)
+    match_ctx["Situation"] = np.clip(match_ctx["Situation"], 1.0, 1.35)
 
     logging.info(
         f"Context computed for {match_ctx['match_id'].nunique()} matches. "
